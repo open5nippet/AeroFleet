@@ -91,6 +91,33 @@ Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used b
 
 Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
 
+### `artifacts/mobile` (`@workspace/mobile`)
+
+AeroFleet — AI-powered dashcam & fleet safety Expo React Native app.
+
+- **Theme**: Dark navy (`#0A0E1A`) with cyan accent (`#00D4FF`), Inter font
+- **Auth**: `context/AuthContext.tsx` — simple session context with login/logout
+- **Recording**: `context/RecordingContext.tsx` — simulated GPS/sensor telemetry
+- **Screens** (5-tab layout via Expo Router):
+  - `app/(tabs)/dashboard.tsx` — live telemetry metrics
+  - `app/(tabs)/camera.tsx` — recording with SOS button
+  - `app/(tabs)/map.tsx` — A→B route planner (Mapbox Geocoding + Directions API)
+  - `app/(tabs)/events.tsx` — safety events log
+  - `app/(tabs)/profile.tsx` — driver profile
+- **Map architecture**: Platform-specific components to avoid web bundling issues:
+  - `components/RNMapView.native.tsx` — react-native-maps (iOS/Android only)
+  - `components/RNMapView.tsx` — Mapbox Static Maps Image fallback (web)
+  - `services/mapbox.ts` — Geocoding + Directions API helpers
+- **Intro splash**: `app/intro.tsx` — branded logo + video, auto-advances after 6s
+- **Tab layout**: `app/(tabs)/_layout.tsx` — NativeTabs (iOS 26+ liquid glass) with BlurView fallback
+- **Key env var**: `EXPO_PUBLIC_MAPBOX_KEY` (exposed from `MAPBOX_PUBLIC_KEY` secret in dev script)
+- **Gotchas**:
+  - `react-native-maps@1.18.0` pinned, NOT in app.json plugins
+  - Do NOT use `uuid` package (crashes native)
+  - Do NOT use `useBottomTabBarHeight()` with NativeTabs
+  - `useNativeDriver` must be `Platform.OS !== "web"` in all animated calls
+  - Web padding: 67px top + 34px bottom manually; tab bar = 84px
+
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.

@@ -41,21 +41,22 @@ export default function IntroScreen() {
     Animated.timing(overlayOpacity, {
       toValue: 1,
       duration: 600,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== "web",
     }).start(() => {
       router.replace("/login");
     });
   };
 
   useEffect(() => {
+    const native = Platform.OS !== "web";
     Animated.sequence([
       Animated.delay(300),
       Animated.parallel([
-        Animated.timing(logoOpacity, { toValue: 1, duration: 800, useNativeDriver: true }),
-        Animated.spring(logoScale, { toValue: 1, tension: 80, friction: 8, useNativeDriver: true }),
+        Animated.timing(logoOpacity, { toValue: 1, duration: 800, useNativeDriver: native }),
+        Animated.spring(logoScale, { toValue: 1, tension: 80, friction: 8, useNativeDriver: native }),
       ]),
       Animated.delay(400),
-      Animated.timing(skipOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.timing(skipOpacity, { toValue: 1, duration: 400, useNativeDriver: native }),
     ]).start();
 
     const timeout = setTimeout(navigateToLogin, 6000);
