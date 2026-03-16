@@ -17,5 +17,5 @@ export default function Index() {
   if (driver) {
     return <Redirect href="/(tabs)/dashboard" />;
   }
-  return <Redirect href="/login" />;
+  return <Redirect href="/intro" />;
 }
