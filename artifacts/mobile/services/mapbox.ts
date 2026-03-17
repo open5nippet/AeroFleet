@@ -14,10 +14,23 @@ export type RouteResult = {
   coordinates: Coordinates[];
 };
 
+const GEOCODER_COUNTRY = "in";
+const GEOCODER_BBOX = "76.8381,28.4042,77.3485,28.8835";
+const DELHI_CENTER = "77.2090,28.6139";
+
 export async function geocodePlace(query: string): Promise<GeocodeResult[]> {
   if (!query.trim() || !MAPBOX_KEY) return [];
   const encoded = encodeURIComponent(query);
-  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encoded}.json?access_token=${MAPBOX_KEY}&limit=5&types=place,address,poi`;
+  const url = [
+    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encoded}.json`,
+    `?access_token=${MAPBOX_KEY}`,
+    `&limit=5`,
+    `&types=place,address,poi,locality,neighborhood`,
+    `&country=${GEOCODER_COUNTRY}`,
+    `&bbox=${GEOCODER_BBOX}`,
+    `&proximity=${DELHI_CENTER}`,
+    `&language=en`,
+  ].join("");
   const res = await fetch(url);
   if (!res.ok) return [];
   const data = await res.json();
