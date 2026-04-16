@@ -40,6 +40,7 @@ export default function RNMapView({
       }
       showsUserLocation={hasLocationPermission}
       showsMyLocationButton={false}
+      showsTraffic={true}
       mapType="standard"
     >
       {originCoords && (

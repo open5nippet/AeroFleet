@@ -2,7 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React from "react";
+import Head from "expo-router/head";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Platform,
@@ -11,12 +12,57 @@ import {
   StyleSheet,
   Text,
   View,
+  Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as ImagePicker from "expo-image-picker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { useAuth } from "@/context/AuthContext";
 import { useRecording } from "@/context/RecordingContext";
 import { ThemePreference, useTheme } from "@/context/ThemeContext";
+import { ColorScheme } from "@/constants/colors";
+
+// ─── Achievement Badge ─────────────────────────────────────────────────────
+function AchievementBadge({
+  icon, label, desc, unlocked, C,
+}: { icon: string; label: string; desc: string; unlocked: boolean; C: ColorScheme }) {
+  return (
+    <View
+      style={[
+        achieveStyles.badge,
+        {
+          backgroundColor: unlocked ? C.backgroundCard : C.backgroundElevated,
+          borderColor: unlocked ? C.tint : C.border,
+          opacity: unlocked ? 1 : 0.5,
+        },
+      ]}
+    >
+      <LinearGradient
+        colors={unlocked ? ["rgba(0,212,255,0.1)", "transparent"] : ["transparent", "transparent"]}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={[achieveStyles.iconBox, { backgroundColor: unlocked ? C.tint + "22" : C.backgroundElevated }]}>
+        <Ionicons name={icon as any} size={20} color={unlocked ? C.tint : C.textMuted} />
+      </View>
+      <Text style={[achieveStyles.label, { color: unlocked ? C.text : C.textMuted, fontFamily: "Inter_600SemiBold" }]}>
+        {label}
+      </Text>
+      <Text style={[achieveStyles.desc, { color: C.textMuted, fontFamily: "Inter_400Regular" }]}>{desc}</Text>
+    </View>
+  );
+}
+
+const achieveStyles = StyleSheet.create({
+  badge: {
+    flex: 1, borderRadius: 16, padding: 14, borderWidth: 1,
+    alignItems: "center", gap: 6, overflow: "hidden",
+  },
+  iconBox: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  label: { fontSize: 12, textAlign: "center" },
+  desc: { fontSize: 10, textAlign: "center" },
+});
+
 
 function MenuItem({
   icon, label, value, color, onPress, danger, tint, text, textMuted, backgroundCard, border,
@@ -59,7 +105,70 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const { driver, logout } = useAuth();
-  const { events, isRecording } = useRecording();
+  const { events, isRecording, recordingDuration, speed } = useRecording();
+
+  // Simulated session distance: speed × time in seconds → meters → km
+  const sessionDistanceKm = (speed * recordingDuration) / 3600;
+  const clipsRecorded = Math.floor(recordingDuration / 300) + (isRecording ? 1 : 0);
+
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem("aerofleet_profile_pic");
+        if (stored) setProfileImage(stored);
+      } catch {}
+    })();
+  }, []);
+
+  const handlePickImage = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert(
+      "Profile Photo",
+      "Choose a method to update your photo",
+      [
+        {
+          text: "Take a Photo",
+          onPress: async () => {
+            const perm = await ImagePicker.requestCameraPermissionsAsync();
+            if (!perm.granted) {
+              Alert.alert("Permission Required", "Camera access is needed to take photos.");
+              return;
+            }
+            let result = await ImagePicker.launchCameraAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            });
+            if (!result.canceled) {
+              const uri = result.assets[0].uri;
+              setProfileImage(uri);
+              try { await AsyncStorage.setItem("aerofleet_profile_pic", uri); } catch {}
+            }
+          }
+        },
+        {
+          text: "Choose from Gallery",
+          onPress: async () => {
+            let result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            });
+            if (!result.canceled) {
+              const uri = result.assets[0].uri;
+              setProfileImage(uri);
+              try { await AsyncStorage.setItem("aerofleet_profile_pic", uri); } catch {}
+            }
+          }
+        },
+        { text: "Cancel", style: "cancel" }
+      ]
+    );
+  };
 
   const handleLogout = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -81,20 +190,35 @@ export default function ProfileScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
+      <Head>
+        <title>Profile | AeroFleet</title>
+        <meta name="description" content="Driver profile, safety score, theme settings and account management for AeroFleet fleet drivers." />
+        <meta property="og:title" content="Profile | AeroFleet" />
+        <meta property="og:description" content="AI Dashcam & Fleet Safety Platform — driver profile." />
+      </Head>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[styles.scroll, { paddingTop: topPad + 20 }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.avatarArea}>
-          <LinearGradient
-            colors={["#00D4FF", "#0070A8"]}
-            style={styles.avatarCircle}
-          >
-            <Text style={[styles.avatarInitial, { fontFamily: "Inter_700Bold" }]}>
-              {(driver?.name ?? "D")[0].toUpperCase()}
-            </Text>
-          </LinearGradient>
+          <Pressable onPress={handlePickImage}>
+            {profileImage ? (
+              <Image source={{ uri: profileImage }} style={styles.avatarCircle} />
+            ) : (
+              <LinearGradient
+                colors={["#00D4FF", "#0070A8"]}
+                style={styles.avatarCircle}
+              >
+                <Text style={[styles.avatarInitial, { fontFamily: "Inter_700Bold" }]}>
+                  {(driver?.name ?? "D")[0].toUpperCase()}
+                </Text>
+              </LinearGradient>
+            )}
+            <View style={[styles.editBadge, { backgroundColor: C.backgroundCard, borderColor: C.borderStrong }]}>
+              <Ionicons name="camera" size={14} color={C.tint} />
+            </View>
+          </Pressable>
           <Text style={[styles.driverName, { color: C.text, fontFamily: "Inter_700Bold" }]}>
             {driver?.name ?? "Driver"}
           </Text>
@@ -137,6 +261,60 @@ export default function ProfileScreen() {
               </Text>
             </View>
             <Text style={[styles.scoreLabel, { color: C.textMuted, fontFamily: "Inter_400Regular" }]}>SOS Alerts</Text>
+          </View>
+        </View>
+
+        {/* Session Stats */}
+        {isRecording && (
+          <View style={[sessionStyles.card, { backgroundColor: C.backgroundCard, borderColor: C.borderStrong }]}>
+            <LinearGradient colors={["rgba(0,212,255,0.06)", "transparent"]} style={StyleSheet.absoluteFill} />
+            <Text style={[sessionStyles.title, { color: C.text, fontFamily: "Inter_600SemiBold" }]}>Live Session</Text>
+            <View style={sessionStyles.row}>
+              <View style={sessionStyles.stat}>
+                <Text style={[sessionStyles.val, { color: C.tint, fontFamily: "Inter_700Bold" }]}>
+                  {sessionDistanceKm.toFixed(2)} <Text style={{ fontSize: 11 }}>km</Text>
+                </Text>
+                <Text style={[sessionStyles.label, { color: C.textMuted, fontFamily: "Inter_400Regular" }]}>Distance</Text>
+              </View>
+              <View style={[sessionStyles.divider, { backgroundColor: C.border }]} />
+              <View style={sessionStyles.stat}>
+                <Text style={[sessionStyles.val, { color: C.warning, fontFamily: "Inter_700Bold" }]}>{clipsRecorded}</Text>
+                <Text style={[sessionStyles.label, { color: C.textMuted, fontFamily: "Inter_400Regular" }]}>Clips</Text>
+              </View>
+              <View style={[sessionStyles.divider, { backgroundColor: C.border }]} />
+              <View style={sessionStyles.stat}>
+                <Text style={[sessionStyles.val, { color: C.danger, fontFamily: "Inter_700Bold" }]}>{events.length}</Text>
+                <Text style={[sessionStyles.label, { color: C.textMuted, fontFamily: "Inter_400Regular" }]}>Events</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Achievements */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: C.textMuted, fontFamily: "Inter_500Medium" }]}>ACHIEVEMENTS</Text>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <AchievementBadge
+              icon="shield-checkmark"
+              label="Safe Driver"
+              desc="Zero SOS events"
+              unlocked={events.filter((e) => e.type === "sos").length === 0}
+              C={C}
+            />
+            <AchievementBadge
+              icon="navigate"
+              label="Navigator"
+              desc="Used Route Planner"
+              unlocked={false}
+              C={C}
+            />
+            <AchievementBadge
+              icon="trophy"
+              label="Veteran"
+              desc="10+ events logged"
+              unlocked={events.length >= 10}
+              C={C}
+            />
           </View>
         </View>
 
@@ -240,6 +418,11 @@ const styles = StyleSheet.create({
   avatarArea: { alignItems: "center", marginBottom: 28, gap: 8 },
   avatarCircle: { width: 88, height: 88, borderRadius: 44, alignItems: "center", justifyContent: "center" },
   avatarInitial: { fontSize: 38, color: "#fff" },
+  editBadge: {
+    position: "absolute", bottom: 0, right: 0,
+    width: 28, height: 28, borderRadius: 14,
+    alignItems: "center", justifyContent: "center", borderWidth: 2,
+  },
   driverName: { fontSize: 24, marginTop: 4 },
   driverEmail: { fontSize: 14 },
   driverIdBadge: {
@@ -277,4 +460,17 @@ const styles = StyleSheet.create({
     gap: 8, borderRadius: 14, padding: 16, borderWidth: 1,
   },
   logoutText: { fontSize: 16 },
+});
+
+const sessionStyles = StyleSheet.create({
+  card: {
+    borderRadius: 18, borderWidth: 1, padding: 16,
+    marginBottom: 24, overflow: "hidden", gap: 12,
+  },
+  title: { fontSize: 14 },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-around" },
+  stat: { alignItems: "center", gap: 3 },
+  val: { fontSize: 18 },
+  label: { fontSize: 10 },
+  divider: { width: 1, height: 36 },
 });

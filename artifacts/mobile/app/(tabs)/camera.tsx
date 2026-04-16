@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import Head from "expo-router/head";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -44,9 +44,12 @@ export default function CameraScreen() {
   const [sosPressed, setSosPressed] = useState(false);
   const [videoQuality, setVideoQuality] = useState<VideoQuality>("1080p");
   const [showQualityPicker, setShowQualityPicker] = useState(false);
+  const [facing, setFacing] = useState<"front" | "back">("back");
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
   const qualityPanelAnim = useRef(new Animated.Value(0)).current;
   const sosAnim = useRef(new Animated.Value(1)).current;
   const recPulse = useRef(new Animated.Value(1)).current;
+  const toastAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     (async () => {
@@ -72,6 +75,16 @@ export default function CameraScreen() {
     }
   }, [isRecording]);
 
+  const showEventToast = (msg: string) => {
+    setToastMsg(msg);
+    toastAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(toastAnim, { toValue: 1, duration: 250, useNativeDriver: Platform.OS !== "web" }),
+      Animated.delay(1800),
+      Animated.timing(toastAnim, { toValue: 0, duration: 300, useNativeDriver: Platform.OS !== "web" }),
+    ]).start(() => setToastMsg(null));
+  };
+
   const openQualityPicker = () => {
     setShowQualityPicker(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -96,6 +109,7 @@ export default function CameraScreen() {
     setSosPressed(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     triggerSOS();
+    showEventToast("🆘 SOS sent!");
     Animated.sequence([
       Animated.timing(sosAnim, { toValue: 1.2, duration: 100, useNativeDriver: Platform.OS !== "web" }),
       Animated.timing(sosAnim, { toValue: 1, duration: 100, useNativeDriver: Platform.OS !== "web" }),
@@ -114,6 +128,13 @@ export default function CameraScreen() {
   const handleEvent = (type: "harsh_brake" | "acceleration") => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     addEvent(type);
+    const labels = { harsh_brake: "⚠️ Harsh Brake logged", acceleration: "⚡ Acceleration logged" };
+    showEventToast(labels[type]);
+  };
+
+  const handleFlipCamera = () => {
+    Haptics.selectionAsync();
+    setFacing((f) => (f === "back" ? "front" : "back"));
   };
 
   if (!permission) {
@@ -156,10 +177,19 @@ export default function CameraScreen() {
     outputRange: [200, 0],
   });
 
+  const clipNum = Math.floor(recordingDuration / 300) + 1;
+  const clipProgress = (recordingDuration % 300) / 300;
+
   return (
     <View style={styles.container}>
+      <Head>
+        <title>Camera | AeroFleet</title>
+        <meta name="description" content="AeroFleet dashcam view — record your drive, monitor speed, trigger SOS, and log safety events in real time." />
+        <meta property="og:title" content="Camera | AeroFleet" />
+        <meta property="og:description" content="AI Dashcam & Fleet Safety Platform — live camera view." />
+      </Head>
       {Platform.OS !== "web" ? (
-        <CameraView style={StyleSheet.absoluteFill} facing="back" />
+        <CameraView style={StyleSheet.absoluteFill} facing={facing} />
       ) : (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: "#000" }]}>
           <LinearGradient
@@ -208,6 +238,12 @@ export default function CameraScreen() {
               <Ionicons name="videocam-outline" size={12} color="rgba(255,255,255,0.8)" />
               <Text style={[styles.qualityText, { fontFamily: "Inter_600SemiBold" }]}>{videoQuality}</Text>
             </Pressable>
+            <Pressable
+              onPress={handleFlipCamera}
+              style={[styles.qualityBadge, { backgroundColor: "rgba(0,0,0,0.55)" }]}
+            >
+              <Ionicons name="camera-reverse-outline" size={15} color="rgba(255,255,255,0.85)" />
+            </Pressable>
             <View style={[styles.gpsBadge, { backgroundColor: gpsActive ? "rgba(52,199,89,0.3)" : "rgba(0,0,0,0.4)" }]}>
               <Ionicons name="location" size={12} color={gpsActive ? "#34C759" : "rgba(255,255,255,0.4)"} />
               <Text style={[styles.gpsText, { color: gpsActive ? "#34C759" : "rgba(255,255,255,0.4)", fontFamily: "Inter_500Medium" }]}>
@@ -227,7 +263,7 @@ export default function CameraScreen() {
             onPress={() => handleEvent("harsh_brake")}
             style={({ pressed }) => [styles.eventBtn, { opacity: pressed ? 0.7 : 1, backgroundColor: "rgba(255,149,0,0.2)", borderColor: "rgba(255,149,0,0.5)" }]}
           >
-            <Ionicons name="warning" size={16} color="#FF9500" />
+            <Ionicons name="warning" size={22} color="#FF9500" />
             <Text style={[styles.eventBtnText, { color: "#FF9500", fontFamily: "Inter_500Medium" }]}>
               Harsh Brake
             </Text>
@@ -236,7 +272,7 @@ export default function CameraScreen() {
             onPress={() => handleEvent("acceleration")}
             style={({ pressed }) => [styles.eventBtn, { opacity: pressed ? 0.7 : 1, backgroundColor: "rgba(0,212,255,0.15)", borderColor: "rgba(0,212,255,0.4)" }]}
           >
-            <Ionicons name="flash" size={16} color="#00D4FF" />
+            <Ionicons name="flash" size={22} color="#00D4FF" />
             <Text style={[styles.eventBtnText, { color: "#00D4FF", fontFamily: "Inter_500Medium" }]}>
               Accel
             </Text>
@@ -244,38 +280,38 @@ export default function CameraScreen() {
         </View>
 
         <View style={styles.controlRow}>
-          <View style={styles.controlSide}>
-            <Pressable
-              onPress={handleToggle}
-              style={({ pressed }) => [styles.recordBtn, {
-                backgroundColor: isRecording ? "rgba(255,59,48,0.9)" : "rgba(0,212,255,0.9)",
-                transform: [{ scale: pressed ? 0.93 : 1 }],
-              }]}
-            >
-              <Ionicons name={isRecording ? "stop" : "play"} size={26} color="#fff" />
-            </Pressable>
+          <View style={styles.controlSide} />
+
+          <View style={{ alignItems: "center" }}>
+            {/* Clip progress ring */}
+            <View style={styles.clipRingWrapper}>
+              {isRecording && (
+                <View
+                  style={[
+                    styles.clipRing,
+                    {
+                      borderColor: `rgba(0,212,255,${0.15 + clipProgress * 0.6})`,
+                      borderTopColor: "#00D4FF",
+                    },
+                  ]}
+                />
+              )}
+              <Pressable
+                onPress={handleToggle}
+                style={({ pressed }) => [styles.recordBtn, {
+                  backgroundColor: isRecording ? "rgba(255,59,48,0.9)" : "rgba(0,212,255,0.9)",
+                  transform: [{ scale: pressed ? 0.93 : 1 }],
+                }]}
+              >
+                <Ionicons name={isRecording ? "stop" : "play"} size={36} color="#fff" />
+              </Pressable>
+            </View>
             <Text style={[styles.recordLabel, { color: "rgba(255,255,255,0.7)", fontFamily: "Inter_400Regular" }]}>
-              {isRecording ? "Stop" : "Record"}
+              {isRecording ? `CLIP ${clipNum}` : "Record"}
             </Text>
           </View>
 
-          <Animated.View style={[styles.sosWrapper, { transform: [{ scale: sosAnim }] }]}>
-            <Pressable
-              onPress={handleSOS}
-              style={({ pressed }) => [styles.sosBtn, { opacity: pressed ? 0.85 : 1 }]}
-            >
-              <LinearGradient
-                colors={["#FF3B30", "#8B0000"]}
-                style={styles.sosBtnInner}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <Text style={[styles.sosBtnText, { fontFamily: "Inter_700Bold" }]}>SOS</Text>
-              </LinearGradient>
-            </Pressable>
-          </Animated.View>
-
-          <View style={styles.controlSide} />
+          <AnimatedSosBtn sosAnim={sosAnim} onPress={handleSOS} />
         </View>
       </LinearGradient>
 
@@ -334,7 +370,38 @@ export default function CameraScreen() {
           </Animated.View>
         </Pressable>
       )}
+      {/* Event Toast */}
+      {toastMsg && (
+        <Animated.View
+          style={[
+            styles.toast,
+            {
+              opacity: toastAnim,
+              transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [-40, 0] }) }],
+            },
+          ]}
+        >
+          <Text style={[styles.toastText, { fontFamily: "Inter_600SemiBold" }]}>{toastMsg}</Text>
+        </Animated.View>
+      )}
     </View>
+  );
+}
+
+function AnimatedSosBtn({ sosAnim, onPress }: { sosAnim: Animated.Value; onPress: () => void }) {
+  return (
+    <Animated.View style={[styles.sosWrapper, { transform: [{ scale: sosAnim }] }]}>
+      <Pressable onPress={onPress} style={({ pressed }) => [styles.sosBtn, { opacity: pressed ? 0.85 : 1 }]}>
+        <LinearGradient
+          colors={["#FF3B30", "#8B0000"]}
+          style={styles.sosBtnInner}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Text style={[styles.sosBtnText, { fontFamily: "Inter_700Bold" }]}>SOS</Text>
+        </LinearGradient>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -385,24 +452,24 @@ const styles = StyleSheet.create({
     position: "absolute", bottom: 0, left: 0, right: 0,
     paddingTop: 60, paddingHorizontal: 20,
   },
-  eventRow: { flexDirection: "row", gap: 12, justifyContent: "center", marginBottom: 24 },
+  eventRow: { flexDirection: "row", gap: 16, justifyContent: "center", marginBottom: 32 },
   eventBtn: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    paddingHorizontal: 16, paddingVertical: 9,
-    borderRadius: 12, borderWidth: 1,
+    flexDirection: "row", alignItems: "center", gap: 8,
+    paddingHorizontal: 22, paddingVertical: 14,
+    borderRadius: 16, borderWidth: 1,
   },
-  eventBtnText: { fontSize: 13 },
-  controlRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20 },
+  eventBtnText: { fontSize: 16 },
+  controlRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 24 },
   controlSide: { flex: 1, alignItems: "center" },
-  recordBtn: { width: 60, height: 60, borderRadius: 30, alignItems: "center", justifyContent: "center" },
-  recordLabel: { fontSize: 12, marginTop: 6 },
+  recordBtn: { width: 76, height: 76, borderRadius: 38, alignItems: "center", justifyContent: "center" },
+  recordLabel: { fontSize: 14, marginTop: 8 },
   sosWrapper: {},
-  sosBtn: { overflow: "hidden", borderRadius: 46 },
+  sosBtn: { overflow: "hidden", borderRadius: 56 },
   sosBtnInner: {
-    width: 92, height: 92, borderRadius: 46,
+    width: 112, height: 112, borderRadius: 56,
     alignItems: "center", justifyContent: "center",
   },
-  sosBtnText: { color: "#fff", fontSize: 22 },
+  sosBtnText: { color: "#fff", fontSize: 28 },
   qualityBackdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -434,4 +501,18 @@ const styles = StyleSheet.create({
   qualityDot: { width: 10, height: 10, borderRadius: 5 },
   qualityOptionLabel: { fontSize: 16, marginBottom: 2 },
   qualityOptionDesc: { fontSize: 12 },
+  clipRingWrapper: { position: "relative", alignItems: "center", justifyContent: "center" },
+  clipRing: {
+    position: "absolute",
+    width: 96, height: 96, borderRadius: 48,
+    borderWidth: 3, borderColor: "transparent",
+    borderStyle: "solid",
+  },
+  toast: {
+    position: "absolute", top: 100, alignSelf: "center",
+    backgroundColor: "rgba(0,0,0,0.75)", borderRadius: 20,
+    paddingHorizontal: 18, paddingVertical: 10,
+    borderWidth: 1, borderColor: "rgba(0,212,255,0.4)",
+  },
+  toastText: { color: "#fff", fontSize: 14 },
 });

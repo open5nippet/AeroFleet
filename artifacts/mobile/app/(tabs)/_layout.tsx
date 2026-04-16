@@ -8,6 +8,7 @@ import React from "react";
 import { Platform, StyleSheet, useWindowDimensions, View } from "react-native";
 
 import { useTheme } from "@/context/ThemeContext";
+import { useRecording } from "@/context/RecordingContext";
 
 function NativeTabLayout() {
   return (
@@ -38,10 +39,12 @@ function NativeTabLayout() {
 
 function ClassicTabLayout() {
   const { colors: C } = useTheme();
+  const { events } = useRecording();
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const { width } = useWindowDimensions();
   const isSmall = width < 380;
+  const eventBadge = events.length > 0 ? events.length : undefined;
 
   return (
     <Tabs
@@ -106,6 +109,8 @@ function ClassicTabLayout() {
         name="events"
         options={{
           title: "Events",
+          tabBarBadge: eventBadge,
+          tabBarBadgeStyle: { backgroundColor: C.danger, fontSize: 10 },
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="exclamationmark.triangle" tintColor={color} size={22} />

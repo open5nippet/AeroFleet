@@ -2,6 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
+import Head from "expo-router/head";
 import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -74,6 +76,8 @@ export default function MapScreen() {
   const [originText, setOriginText] = useState("");
   const [destText, setDestText] = useState("");
   const [activeField, setActiveField] = useState<SearchField>(null);
+  const [originFocused, setOriginFocused] = useState(false);
+  const [destFocused, setDestFocused] = useState(false);
   const [suggestions, setSuggestions] = useState<GeocodeResult[]>([]);
   const [loadingSugg, setLoadingSugg] = useState(false);
   const [originCoords, setOriginCoords] = useState<Coordinates | null>(null);
@@ -164,51 +168,69 @@ export default function MapScreen() {
   const canRoute = !!originCoords && !!destCoords && !loadingRoute;
 
   const SearchPanel = (
-    <View style={{ gap: 8 }}>
-      <View style={[styles.searchCard, { backgroundColor: C.backgroundSecondary }]}>
-        <View style={[styles.inputRow, { borderBottomWidth: 1, borderBottomColor: C.border }]}>
-          <View style={[styles.dot, { backgroundColor: C.tint }]} />
+    <View style={{ gap: 12 }}>
+      <View style={[styles.searchCard, { backgroundColor: C.backgroundCard, borderColor: C.border }]}>
+        <View
+          style={[
+            styles.inputRow,
+            {
+              borderBottomWidth: 1,
+              borderBottomColor: C.border,
+              backgroundColor: originFocused ? C.backgroundElevated : "transparent",
+            },
+          ]}
+        >
+          <View style={[styles.dot, { backgroundColor: C.tint, shadowColor: C.tint, shadowOpacity: 0.6, shadowRadius: 3 }]} />
           <TextInput
             style={[styles.searchInput, { color: C.text, fontFamily: "Inter_400Regular", fontSize: isSmall ? 13 : 14 }]}
-            placeholder="Point A — origin"
+            placeholder="Origin (e.g. My Location)"
             placeholderTextColor={C.textMuted}
             value={originText}
             onChangeText={(t) => { setOriginText(t); setOriginCoords(null); setRoute(null); search(t); }}
-            onFocus={() => setActiveField("origin")}
+            onFocus={() => { setActiveField("origin"); setOriginFocused(true); }}
+            onBlur={() => setOriginFocused(false)}
             returnKeyType="next"
           />
           {originText ? (
             <Pressable onPress={() => { setOriginText(""); setOriginCoords(null); setRoute(null); }}>
-              <Ionicons name="close-circle" size={16} color={C.textMuted} />
+              <Ionicons name="close-circle" size={18} color={C.textMuted} />
             </Pressable>
           ) : (
-            <Pressable onPress={useMyLocation} style={{ padding: 2 }}>
-              <Ionicons name="locate" size={16} color={C.tint} />
+            <Pressable onPress={useMyLocation} style={{ padding: 4 }}>
+              <Ionicons name="locate" size={18} color={C.tint} />
             </Pressable>
           )}
         </View>
-        <View style={styles.inputRow}>
-          <View style={[styles.dot, { backgroundColor: C.danger }]} />
+        <View
+          style={[
+            styles.inputRow,
+            {
+              backgroundColor: destFocused ? C.backgroundElevated : "transparent",
+            },
+          ]}
+        >
+          <View style={[styles.dot, { backgroundColor: C.danger, shadowColor: C.danger, shadowOpacity: 0.6, shadowRadius: 3 }]} />
           <TextInput
             style={[styles.searchInput, { color: C.text, fontFamily: "Inter_400Regular", fontSize: isSmall ? 13 : 14 }]}
-            placeholder="Point B — destination"
+            placeholder="Destination (e.g. Airport)"
             placeholderTextColor={C.textMuted}
             value={destText}
             onChangeText={(t) => { setDestText(t); setDestCoords(null); setRoute(null); search(t); }}
-            onFocus={() => setActiveField("destination")}
+            onFocus={() => { setActiveField("destination"); setDestFocused(true); }}
+            onBlur={() => setDestFocused(false)}
             returnKeyType="search"
             onSubmitEditing={handleGetRoute}
           />
           {destText ? (
             <Pressable onPress={() => { setDestText(""); setDestCoords(null); setRoute(null); }}>
-              <Ionicons name="close-circle" size={16} color={C.textMuted} />
+              <Ionicons name="close-circle" size={18} color={C.textMuted} />
             </Pressable>
           ) : null}
         </View>
       </View>
 
       {(loadingSugg || suggestions.length > 0) && activeField && (
-        <View style={[styles.suggList, { backgroundColor: C.backgroundSecondary, borderColor: C.border }]}>
+        <View style={[styles.suggList, { backgroundColor: C.backgroundCard, borderColor: C.borderStrong }]}>
           {loadingSugg ? (
             <View style={{ padding: 16, alignItems: "center" }}>
               <ActivityIndicator size="small" color={C.tint} />
@@ -228,13 +250,28 @@ export default function MapScreen() {
       <Pressable
         onPress={handleGetRoute}
         disabled={!canRoute}
-        style={({ pressed }) => [styles.routeBtn, { opacity: canRoute ? (pressed ? 0.85 : 1) : 0.4 }]}
+        style={({ pressed }) => [
+          styles.routeBtn,
+          {
+            opacity: canRoute ? (pressed ? 0.88 : 1) : 0.5,
+            transform: [{ scale: pressed && canRoute ? 0.98 : 1 }],
+          },
+        ]}
       >
-        <LinearGradient colors={["#00D4FF", "#0070A8"]} style={styles.routeBtnInner} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-          {loadingRoute ? <ActivityIndicator color="#fff" size="small" /> : (
+        <LinearGradient
+          colors={canRoute ? ["#00D4FF", "#0070A8", "#004E78"] : [C.backgroundElevated, C.backgroundElevated]}
+          style={styles.routeBtnInner}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        >
+          {loadingRoute ? (
+            <ActivityIndicator color={canRoute ? "#fff" : C.textMuted} size="small" />
+          ) : (
             <>
-              <Ionicons name="navigate" size={16} color="#fff" />
-              <Text style={[styles.routeBtnText, { fontFamily: "Inter_600SemiBold", fontSize: isSmall ? 13 : 15 }]}>Get Route</Text>
+              <Ionicons name="navigate" size={18} color={canRoute ? "#fff" : C.textMuted} />
+              <Text style={[styles.routeBtnText, { color: canRoute ? "#fff" : C.textMuted, fontFamily: "Inter_600SemiBold", fontSize: isSmall ? 14 : 16 }]}>
+                Get Route
+              </Text>
             </>
           )}
         </LinearGradient>
@@ -242,8 +279,8 @@ export default function MapScreen() {
 
       {routeError ? (
         <View style={[styles.errorBox, { backgroundColor: "rgba(255,59,48,0.1)", borderColor: "rgba(255,59,48,0.3)" }]}>
-          <Ionicons name="alert-circle" size={14} color={C.danger} />
-          <Text style={[styles.errorText, { color: C.danger, fontFamily: "Inter_400Regular" }]}>{routeError}</Text>
+          <Ionicons name="alert-circle" size={16} color={C.danger} />
+          <Text style={[styles.errorText, { color: C.danger, fontFamily: "Inter_500Medium" }]}>{routeError}</Text>
         </View>
       ) : null}
     </View>
@@ -254,8 +291,12 @@ export default function MapScreen() {
       style={[
         styles.routeCard,
         {
-          backgroundColor: C.backgroundSecondary,
+          backgroundColor: C.backgroundCard,
           borderColor: C.borderStrong,
+          shadowColor: C.tint,
+          shadowOpacity: 0.15,
+          shadowRadius: 16,
+          elevation: 10,
           opacity: cardAnim,
           transform: IS_WEB
             ? [{ translateY: cardAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }]
@@ -263,28 +304,50 @@ export default function MapScreen() {
         },
       ]}
     >
+      <LinearGradient colors={["rgba(0,212,255,0.06)", "transparent"]} style={StyleSheet.absoluteFill} />
       <View style={styles.routeStats}>
         <View style={styles.routeStat}>
-          <Ionicons name="map-outline" size={20} color={C.tint} />
+          <View style={[styles.statIconBox, { backgroundColor: C.tint + "20" }]}>
+            <Ionicons name="map-outline" size={20} color={C.tint} />
+          </View>
           <View>
             <Text style={[styles.routeStatVal, { color: C.text, fontFamily: "Inter_700Bold" }]}>
               {formatDistance(route.distance)}
             </Text>
-            <Text style={[styles.routeStatLabel, { color: C.textMuted, fontFamily: "Inter_400Regular" }]}>Distance</Text>
+            <Text style={[styles.routeStatLabel, { color: C.textMuted, fontFamily: "Inter_500Medium" }]}>Distance</Text>
           </View>
         </View>
         <View style={[styles.routeDivider, { backgroundColor: C.border }]} />
         <View style={styles.routeStat}>
-          <Ionicons name="time-outline" size={20} color={C.warning} />
+          <View style={[styles.statIconBox, { backgroundColor: C.warning + "20" }]}>
+            <Ionicons name="time-outline" size={20} color={C.warning} />
+          </View>
           <View>
             <Text style={[styles.routeStatVal, { color: C.text, fontFamily: "Inter_700Bold" }]}>
               {formatDuration(route.duration)}
             </Text>
-            <Text style={[styles.routeStatLabel, { color: C.textMuted, fontFamily: "Inter_400Regular" }]}>ETA</Text>
+            <Text style={[styles.routeStatLabel, { color: C.textMuted, fontFamily: "Inter_500Medium" }]}>ETA</Text>
           </View>
         </View>
-        <Pressable onPress={clearAll} style={[styles.clearBtn, { backgroundColor: C.backgroundElevated }]}>
+        <Pressable onPress={clearAll} style={[styles.clearBtn, { backgroundColor: C.backgroundElevated, borderColor: C.border }]}>
           <Ionicons name="close" size={16} color={C.textMuted} />
+        </Pressable>
+      </View>
+      <View style={{ paddingHorizontal: 18, paddingBottom: 16 }}>
+        <Pressable
+          onPress={() => router.push("/(tabs)/dashboard")}
+          style={({ pressed }) => [styles.startBtn, { opacity: pressed ? 0.8 : 1 }]}
+        >
+          <LinearGradient
+            colors={["#00D4FF", "#0070A8"]}
+            style={styles.startBtnInner}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          >
+            <Ionicons name="navigate-circle" size={20} color="#fff" />
+            <Text style={[styles.startBtnText, { fontFamily: "Inter_600SemiBold" }]}>
+              Start Navigation
+            </Text>
+          </LinearGradient>
         </Pressable>
       </View>
     </Animated.View>
@@ -293,6 +356,12 @@ export default function MapScreen() {
   if (IS_WEB) {
     return (
       <View style={[styles.container, { backgroundColor: C.background }]}>
+        <Head>
+          <title>Live Map | AeroFleet</title>
+          <meta name="description" content="Plan routes and navigate with Mapbox-powered A→B directions for AeroFleet fleet drivers." />
+          <meta property="og:title" content="Live Map | AeroFleet" />
+          <meta property="og:description" content="AI Dashcam & Fleet Safety Platform — route planner and live map." />
+        </Head>
         <ScrollView
           contentContainerStyle={{ paddingTop: topPad + 16, paddingBottom: bottomPad + 24, paddingHorizontal: 16 }}
           keyboardShouldPersistTaps="handled"
@@ -331,17 +400,17 @@ export default function MapScreen() {
 
       <LinearGradient
         colors={C.isDark
-          ? ["rgba(10,14,26,0.93)", "rgba(10,14,26,0.85)", "rgba(10,14,26,0.3)", "transparent"]
-          : ["rgba(240,244,251,0.97)", "rgba(240,244,251,0.9)", "rgba(240,244,251,0.3)", "transparent"]}
-        style={[styles.topGradient, { paddingTop: topPad + 8 }]}
+          ? ["rgba(6,8,16,0.95)", "rgba(6,8,16,0.85)", "rgba(6,8,16,0.2)", "transparent"]
+          : ["rgba(240,244,251,0.95)", "rgba(240,244,251,0.85)", "rgba(240,244,251,0.2)", "transparent"]}
+        style={[styles.topGradient, { paddingTop: topPad + 12 }]}
       >
-        <View style={{ paddingHorizontal: 16, gap: 8 }}>
+        <View style={{ paddingHorizontal: 20, gap: 8 }}>
           {SearchPanel}
         </View>
       </LinearGradient>
 
       {RouteCard && (
-        <View style={[styles.bottomCard, { bottom: bottomPad + 12, left: 16, right: 16 }]}>
+        <View style={[styles.bottomCard, { bottom: bottomPad + 76, left: 20, right: 20 }]}>
           {RouteCard}
         </View>
       )}
@@ -352,14 +421,14 @@ export default function MapScreen() {
           style={[
             styles.locFab,
             {
-              bottom: bottomPad + (route ? 108 : 16),
-              right: 16,
-              backgroundColor: C.backgroundSecondary,
+              bottom: bottomPad + (route ? 180 : 86),
+              right: 20,
+              backgroundColor: C.backgroundCard,
               borderColor: C.border,
             },
           ]}
         >
-          <Ionicons name="locate" size={20} color={C.tint} />
+          <Ionicons name="locate" size={22} color={C.tint} />
         </Pressable>
       )}
     </View>
@@ -370,29 +439,33 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   screenTitle: { fontSize: 26, marginBottom: 4 },
   screenSub: { fontSize: 13, marginBottom: 20 },
-  topGradient: { paddingBottom: 16 },
-  searchCard: { borderRadius: 16, overflow: "hidden" },
-  inputRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 12, gap: 10 },
+  topGradient: { paddingBottom: 24 },
+  searchCard: { borderRadius: 20, overflow: "hidden", borderWidth: 1 },
+  inputRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  searchInput: { flex: 1 },
-  suggList: { borderRadius: 14, borderWidth: 1, overflow: "hidden" },
-  suggItem: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1 },
-  suggIcon: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  suggName: { fontSize: 14 },
-  suggSub: { fontSize: 11, marginTop: 1 },
-  routeBtn: { borderRadius: 14, overflow: "hidden" },
-  routeBtnInner: { height: 46, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  searchInput: { flex: 1, paddingTop: Platform.OS === 'ios' ? 2 : 0 },
+  suggList: { borderRadius: 18, borderWidth: 1, overflow: "hidden", marginTop: 4 },
+  suggItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1 },
+  suggIcon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  suggName: { fontSize: 15 },
+  suggSub: { fontSize: 12, marginTop: 2 },
+  routeBtn: { borderRadius: 16, overflow: "hidden", marginTop: 4 },
+  routeBtnInner: { height: 54, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
   routeBtnText: { color: "#fff" },
-  errorBox: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 10, borderWidth: 1, padding: 10 },
+  errorBox: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 4 },
   errorText: { fontSize: 13, flex: 1 },
   webMapBox: { borderRadius: 18, overflow: "hidden", borderWidth: 1, height: 230, marginTop: 12, marginBottom: 12 },
-  routeCard: { borderRadius: 18, borderWidth: 1, overflow: "hidden" },
+  routeCard: { borderRadius: 20, borderWidth: 1, overflow: "hidden" },
   bottomCard: { position: "absolute" },
-  routeStats: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
-  routeStat: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
-  routeStatVal: { fontSize: 18 },
-  routeStatLabel: { fontSize: 11, marginTop: 1 },
-  routeDivider: { width: 1, height: 40, marginHorizontal: 4 },
-  clearBtn: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  locFab: { position: "absolute", width: 46, height: 46, borderRadius: 23, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  routeStats: { flexDirection: "row", alignItems: "center", paddingHorizontal: 18, paddingVertical: 16, gap: 14 },
+  routeStat: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12 },
+  statIconBox: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  routeStatVal: { fontSize: 20, marginBottom: 2 },
+  routeStatLabel: { fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 },
+  routeDivider: { width: 1, height: 44, marginHorizontal: 6 },
+  clearBtn: { width: 36, height: 36, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  locFab: { position: "absolute", width: 52, height: 52, borderRadius: 26, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  startBtn: { borderRadius: 14, overflow: "hidden" },
+  startBtnInner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 50 },
+  startBtnText: { color: "#fff", fontSize: 16 },
 });

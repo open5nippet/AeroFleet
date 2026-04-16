@@ -10,6 +10,7 @@ export type ColorScheme = {
   borderStrong: string;
   tint: string;
   tintDark: string;
+  accent: string;
   tabIconDefault: string;
   tabIconSelected: string;
   danger: string;
@@ -24,16 +25,17 @@ export type ColorScheme = {
 export const darkColors: ColorScheme = {
   text: "#FFFFFF",
   textSecondary: "rgba(255,255,255,0.6)",
-  textMuted: "rgba(255,255,255,0.35)",
-  background: "#0A0E1A",
-  backgroundSecondary: "#111827",
-  backgroundCard: "#151D2E",
-  backgroundElevated: "#1C2539",
-  border: "rgba(255,255,255,0.08)",
-  borderStrong: "rgba(0,212,255,0.25)",
+  textMuted: "rgba(255,255,255,0.4)",
+  background: "#060810",
+  backgroundSecondary: "#0D1117",
+  backgroundCard: "#0F1623",
+  backgroundElevated: "#161E2E",
+  border: "rgba(0,212,255,0.08)",
+  borderStrong: "rgba(0,212,255,0.3)",
   tint: "#00D4FF",
   tintDark: "#0095B3",
-  tabIconDefault: "rgba(255,255,255,0.4)",
+  accent: "#7C3AED",
+  tabIconDefault: "rgba(255,255,255,0.35)",
   tabIconSelected: "#00D4FF",
   danger: "#FF3B30",
   success: "#34C759",
@@ -56,6 +58,7 @@ export const lightColors: ColorScheme = {
   borderStrong: "rgba(0,100,180,0.35)",
   tint: "#0070A8",
   tintDark: "#005484",
+  accent: "#6D28D9",
   tabIconDefault: "rgba(10,14,26,0.38)",
   tabIconSelected: "#0070A8",
   danger: "#D92D20",
@@ -69,5 +72,5 @@ export const lightColors: ColorScheme = {
 
 export default {
   dark: darkColors,
-  light: darkColors,
+  light: lightColors,
 };
