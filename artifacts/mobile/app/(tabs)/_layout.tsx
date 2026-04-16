@@ -39,12 +39,12 @@ function NativeTabLayout() {
 
 function ClassicTabLayout() {
   const { colors: C } = useTheme();
-  const { events } = useRecording();
+  const { unreadCount } = useRecording();
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const { width } = useWindowDimensions();
   const isSmall = width < 380;
-  const eventBadge = events.length > 0 ? events.length : undefined;
+  const eventBadge = unreadCount > 0 ? unreadCount : undefined;
 
   return (
     <Tabs

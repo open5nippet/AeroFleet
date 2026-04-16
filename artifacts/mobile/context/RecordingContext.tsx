@@ -27,6 +27,9 @@ type RecordingContextType = {
   stopRecording: () => void;
   triggerSOS: () => void;
   addEvent: (type: EventType) => void;
+  unreadCount: number;
+  markEventsRead: () => void;
+  clearAllEvents: () => void;
 };
 
 const RecordingContext = createContext<RecordingContextType | null>(null);
@@ -45,6 +48,7 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
   const [accelerometerData, setAccelerometerData] = useState({ x: 0, y: 0, z: 0 });
   const [gyroscopeData, setGyroscopeData] = useState({ x: 0, y: 0, z: 0 });
   const [events, setEvents] = useState<SafetyEvent[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sensorRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -152,7 +156,18 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
       saveEvents(updated);
       return updated;
     });
+    setUnreadCount((c) => c + 1);
   }, [gpsCoords, speed, saveEvents]);
+
+  const markEventsRead = useCallback(() => {
+    setUnreadCount(0);
+  }, []);
+
+  const clearAllEvents = useCallback(() => {
+    setEvents([]);
+    setUnreadCount(0);
+    saveEvents([]);
+  }, [saveEvents]);
 
   const triggerSOS = useCallback(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -182,6 +197,9 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
         stopRecording,
         triggerSOS,
         addEvent,
+        unreadCount,
+        markEventsRead,
+        clearAllEvents,
       }}
     >
       {children}

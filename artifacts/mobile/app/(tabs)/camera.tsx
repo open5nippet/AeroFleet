@@ -206,23 +206,14 @@ export default function CameraScreen() {
       )}
 
       <LinearGradient
-        colors={["rgba(0,0,0,0.7)", "transparent"]}
+        colors={["rgba(0,0,0,0.8)", "transparent"]}
         style={[styles.topOverlay, { paddingTop: topPad + 12 }]}
       >
         <View style={styles.topBar}>
-          <View style={styles.topLeft}>
+          {/* Left: Speed */}
+          <View style={styles.topBarSide}>
             {isRecording && (
-              <Animated.View style={[styles.recBadge, { transform: [{ scale: recPulse }] }]}>
-                <View style={styles.recDot} />
-                <Text style={[styles.recText, { fontFamily: "Inter_600SemiBold" }]}>
-                  REC {formatDuration(recordingDuration)}
-                </Text>
-              </Animated.View>
-            )}
-          </View>
-          <View style={styles.topRight}>
-            {isRecording && (
-              <View style={[styles.speedBadge, { backgroundColor: "rgba(0,0,0,0.5)" }]}>
+              <View style={styles.speedBadge}>
                 <Text style={[styles.speedVal, { color: "#fff", fontFamily: "Inter_700Bold" }]}>
                   {speed.toFixed(0)}
                 </Text>
@@ -231,59 +222,61 @@ export default function CameraScreen() {
                 </Text>
               </View>
             )}
-            <Pressable
-              onPress={openQualityPicker}
-              style={[styles.qualityBadge, { backgroundColor: "rgba(0,0,0,0.55)" }]}
-            >
+          </View>
+          
+          {/* Center: Rec Status */}
+          <View style={styles.topBarCenter}>
+            {isRecording && (
+              <Animated.View style={[styles.recBadge, { transform: [{ scale: recPulse }] }]}>
+                <View style={styles.recDot} />
+                <Text style={[styles.recText, { fontFamily: "Inter_600SemiBold" }]}>
+                  {formatDuration(recordingDuration)}
+                </Text>
+              </Animated.View>
+            )}
+          </View>
+
+          {/* Right: GPS & Quality */}
+          <View style={styles.topBarRight}>
+            <Pressable onPress={openQualityPicker} style={styles.qualityBadge}>
               <Ionicons name="videocam-outline" size={12} color="rgba(255,255,255,0.8)" />
               <Text style={[styles.qualityText, { fontFamily: "Inter_600SemiBold" }]}>{videoQuality}</Text>
             </Pressable>
-            <Pressable
-              onPress={handleFlipCamera}
-              style={[styles.qualityBadge, { backgroundColor: "rgba(0,0,0,0.55)" }]}
-            >
-              <Ionicons name="camera-reverse-outline" size={15} color="rgba(255,255,255,0.85)" />
-            </Pressable>
-            <View style={[styles.gpsBadge, { backgroundColor: gpsActive ? "rgba(52,199,89,0.3)" : "rgba(0,0,0,0.4)" }]}>
-              <Ionicons name="location" size={12} color={gpsActive ? "#34C759" : "rgba(255,255,255,0.4)"} />
-              <Text style={[styles.gpsText, { color: gpsActive ? "#34C759" : "rgba(255,255,255,0.4)", fontFamily: "Inter_500Medium" }]}>
-                GPS
-              </Text>
+            <View style={[styles.gpsBadge, { borderColor: gpsActive ? "rgba(52,199,89,0.4)" : "rgba(255,255,255,0.15)" }]}>
+              <Ionicons name="location" size={14} color={gpsActive ? "#34C759" : "rgba(255,255,255,0.4)"} />
             </View>
           </View>
         </View>
       </LinearGradient>
 
       <LinearGradient
-        colors={["transparent", "rgba(0,0,0,0.85)"]}
-        style={[styles.bottomOverlay, { paddingBottom: bottomPad + 16 }]}
+        colors={["transparent", "rgba(0,0,0,0.95)"]}
+        style={[styles.bottomOverlay, { paddingBottom: bottomPad > 0 ? bottomPad + 16 : 32 }]}
       >
+        {/* Mock Triggers Row */}
         <View style={styles.eventRow}>
-          <Pressable
-            onPress={() => handleEvent("harsh_brake")}
-            style={({ pressed }) => [styles.eventBtn, { opacity: pressed ? 0.7 : 1, backgroundColor: "rgba(255,149,0,0.2)", borderColor: "rgba(255,149,0,0.5)" }]}
-          >
-            <Ionicons name="warning" size={22} color="#FF9500" />
-            <Text style={[styles.eventBtnText, { color: "#FF9500", fontFamily: "Inter_500Medium" }]}>
-              Harsh Brake
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => handleEvent("acceleration")}
-            style={({ pressed }) => [styles.eventBtn, { opacity: pressed ? 0.7 : 1, backgroundColor: "rgba(0,212,255,0.15)", borderColor: "rgba(0,212,255,0.4)" }]}
-          >
-            <Ionicons name="flash" size={22} color="#00D4FF" />
-            <Text style={[styles.eventBtnText, { color: "#00D4FF", fontFamily: "Inter_500Medium" }]}>
-              Accel
-            </Text>
-          </Pressable>
+          <Text style={[styles.mockTitle, { fontFamily: "Inter_500Medium" }]}>Simulate AI Events</Text>
+          <View style={styles.mockPills}>
+            <Pressable onPress={() => handleEvent("harsh_brake")} style={({ pressed }) => [styles.eventBtn, { opacity: pressed ? 0.7 : 1, backgroundColor: "rgba(255,149,0,0.15)", borderColor: "rgba(255,149,0,0.3)" }]}>
+              <Ionicons name="warning" size={16} color="#FF9500" />
+              <Text style={[styles.eventBtnText, { color: "#FF9500", fontFamily: "Inter_500Medium" }]}>Brake</Text>
+            </Pressable>
+            <Pressable onPress={() => handleEvent("acceleration")} style={({ pressed }) => [styles.eventBtn, { opacity: pressed ? 0.7 : 1, backgroundColor: "rgba(0,212,255,0.15)", borderColor: "rgba(0,212,255,0.4)" }]}>
+              <Ionicons name="flash" size={16} color="#00D4FF" />
+              <Text style={[styles.eventBtnText, { color: "#00D4FF", fontFamily: "Inter_500Medium" }]}>Accel</Text>
+            </Pressable>
+          </View>
         </View>
 
+        {/* Symmetrical Control Bar */}
         <View style={styles.controlRow}>
-          <View style={styles.controlSide} />
+          {/* Left: Flip */}
+          <Pressable onPress={handleFlipCamera} style={({ pressed }) => [styles.sideActionBtn, { opacity: pressed ? 0.7 : 1 }]}>
+            <Ionicons name="camera-reverse" size={24} color="#fff" />
+          </Pressable>
 
+          {/* Center: Record */}
           <View style={{ alignItems: "center" }}>
-            {/* Clip progress ring */}
             <View style={styles.clipRingWrapper}>
               {isRecording && (
                 <View
@@ -303,14 +296,15 @@ export default function CameraScreen() {
                   transform: [{ scale: pressed ? 0.93 : 1 }],
                 }]}
               >
-                <Ionicons name={isRecording ? "stop" : "play"} size={36} color="#fff" />
+                <Ionicons name={isRecording ? "stop" : "play"} size={32} color="#fff" />
               </Pressable>
             </View>
-            <Text style={[styles.recordLabel, { color: "rgba(255,255,255,0.7)", fontFamily: "Inter_400Regular" }]}>
-              {isRecording ? `CLIP ${clipNum}` : "Record"}
+            <Text style={[styles.recordLabel, { color: "rgba(255,255,255,0.6)", fontFamily: "Inter_600SemiBold" }]}>
+              {isRecording ? `CLIP ${clipNum}` : "STANDBY"}
             </Text>
           </View>
 
+          {/* Right: SOS */}
           <AnimatedSosBtn sosAnim={sosAnim} onPress={handleSOS} />
         </View>
       </LinearGradient>
@@ -390,16 +384,9 @@ export default function CameraScreen() {
 
 function AnimatedSosBtn({ sosAnim, onPress }: { sosAnim: Animated.Value; onPress: () => void }) {
   return (
-    <Animated.View style={[styles.sosWrapper, { transform: [{ scale: sosAnim }] }]}>
-      <Pressable onPress={onPress} style={({ pressed }) => [styles.sosBtn, { opacity: pressed ? 0.85 : 1 }]}>
-        <LinearGradient
-          colors={["#FF3B30", "#8B0000"]}
-          style={styles.sosBtnInner}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Text style={[styles.sosBtnText, { fontFamily: "Inter_700Bold" }]}>SOS</Text>
-        </LinearGradient>
+    <Animated.View style={{ transform: [{ scale: sosAnim }] }}>
+      <Pressable onPress={onPress} style={({ pressed }) => [styles.sideActionBtn, { backgroundColor: "rgba(255,59,48,0.2)", borderColor: "rgba(255,59,48,0.5)", opacity: pressed ? 0.7 : 1 }]}>
+        <Text style={{ color: "#FF3B30", fontFamily: "Inter_700Bold", fontSize: 16 }}>SOS</Text>
       </Pressable>
     </Animated.View>
   );
@@ -422,54 +409,66 @@ const styles = StyleSheet.create({
   permText: { fontSize: 16, marginTop: 12 },
   webCamPlaceholder: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   webCamText: { fontSize: 14 },
-  topOverlay: { position: "absolute", top: 0, left: 0, right: 0, paddingHorizontal: 16, paddingBottom: 40 },
-  topBar: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
-  topLeft: {},
-  topRight: { flexDirection: "row", gap: 8, alignItems: "center" },
+  topOverlay: { position: "absolute", top: 0, left: 0, right: 0, paddingHorizontal: 20, paddingBottom: 50 },
+  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  topBarSide: { flex: 1, alignItems: "flex-start" },
+  topBarCenter: { flex: 1, alignItems: "center" },
+  topBarRight: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 8 },
   recBadge: {
     flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "rgba(255,59,48,0.8)", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
+    backgroundColor: "rgba(255,59,48,0.15)", borderColor: "rgba(255,59,48,0.4)", borderWidth: 1,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12,
   },
-  recDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#fff" },
-  recText: { color: "#fff", fontSize: 12 },
+  recDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#FF3B30" },
+  recText: { color: "#FF3B30", fontSize: 13, letterSpacing: 0.5 },
   speedBadge: {
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
-    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12,
+    alignItems: "center", alignSelf: "flex-start",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.15)",
   },
   speedVal: { fontSize: 20, lineHeight: 24 },
-  speedUnit: { fontSize: 10 },
+  speedUnit: { fontSize: 9, opacity: 0.8 },
   qualityBadge: {
     flexDirection: "row", alignItems: "center", gap: 4,
-    paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.5)", borderWidth: 1, borderColor: "rgba(255,255,255,0.15)",
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10,
   },
-  qualityText: { color: "#fff", fontSize: 11 },
+  qualityText: { color: "#fff", fontSize: 12 },
   gpsBadge: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
+    alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.5)", borderWidth: 1,
+    width: 30, height: 30, borderRadius: 10,
   },
-  gpsText: { fontSize: 11 },
   bottomOverlay: {
     position: "absolute", bottom: 0, left: 0, right: 0,
-    paddingTop: 60, paddingHorizontal: 20,
+    paddingTop: 80, paddingHorizontal: 20,
   },
-  eventRow: { flexDirection: "row", gap: 16, justifyContent: "center", marginBottom: 32 },
+  eventRow: { alignItems: "center", marginBottom: 30 },
+  mockTitle: { color: "rgba(255,255,255,0.4)", fontSize: 10, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 },
+  mockPills: { flexDirection: "row", gap: 12 },
   eventBtn: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    paddingHorizontal: 22, paddingVertical: 14,
-    borderRadius: 16, borderWidth: 1,
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: 20, borderWidth: 1,
   },
-  eventBtnText: { fontSize: 16 },
-  controlRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 24 },
-  controlSide: { flex: 1, alignItems: "center" },
-  recordBtn: { width: 76, height: 76, borderRadius: 38, alignItems: "center", justifyContent: "center" },
-  recordLabel: { fontSize: 14, marginTop: 8 },
-  sosWrapper: {},
-  sosBtn: { overflow: "hidden", borderRadius: 56 },
-  sosBtnInner: {
-    width: 112, height: 112, borderRadius: 56,
+  eventBtnText: { fontSize: 13 },
+  controlRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", paddingHorizontal: 12 },
+  sideActionBtn: {
+    width: 60, height: 60, borderRadius: 30,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.3)",
     alignItems: "center", justifyContent: "center",
+    marginTop: 6,
   },
-  sosBtnText: { color: "#fff", fontSize: 28 },
+  clipRingWrapper: { position: "relative", alignItems: "center", justifyContent: "center" },
+  clipRing: {
+    position: "absolute",
+    width: 86, height: 86, borderRadius: 43,
+    borderWidth: 3, borderColor: "transparent",
+  },
+  recordBtn: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
+  recordLabel: { fontSize: 11, marginTop: 12, textTransform: "uppercase", letterSpacing: 1 },
   qualityBackdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -501,13 +500,7 @@ const styles = StyleSheet.create({
   qualityDot: { width: 10, height: 10, borderRadius: 5 },
   qualityOptionLabel: { fontSize: 16, marginBottom: 2 },
   qualityOptionDesc: { fontSize: 12 },
-  clipRingWrapper: { position: "relative", alignItems: "center", justifyContent: "center" },
-  clipRing: {
-    position: "absolute",
-    width: 96, height: 96, borderRadius: 48,
-    borderWidth: 3, borderColor: "transparent",
-    borderStyle: "solid",
-  },
+
   toast: {
     position: "absolute", top: 100, alignSelf: "center",
     backgroundColor: "rgba(0,0,0,0.75)", borderRadius: 20,

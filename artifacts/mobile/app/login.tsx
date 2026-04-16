@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -24,11 +25,13 @@ export default function LoginScreen() {
   const { login } = useAuth();
   const { colors: C } = useTheme();
   const insets = useSafeAreaInsets();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [nameFocused, setNameFocused] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passFocused, setPassFocused] = useState(false);
 
@@ -46,8 +49,8 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      setError("Please enter your credentials");
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      setError("Please fill out all fields");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       shake();
       return;
@@ -56,7 +59,7 @@ export default function LoginScreen() {
     setIsLoading(true);
     Animated.spring(btnAnim, { toValue: 0.95, useNativeDriver: true, tension: 200, friction: 10 }).start();
     try {
-      const success = await login(email.trim(), password);
+      const success = await login(name.trim(), email.trim(), password);
       if (success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.replace("/(tabs)/dashboard");
@@ -96,8 +99,14 @@ export default function LoginScreen() {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={[styles.inner, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 24 }]}
+        style={{ flex: 1 }}
+        enabled={Platform.OS === "ios"}
       >
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.inner, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 24 }]}
+        >
         {/* Logo Area */}
         <View style={styles.logoArea}>
           <View style={styles.iconWrapper}>
@@ -123,6 +132,30 @@ export default function LoginScreen() {
             Driver Login
           </Text>
 
+          {/* Name */}
+          <View
+            style={[
+              styles.inputWrapper,
+              {
+                backgroundColor: C.backgroundCard,
+                borderColor: nameFocused ? C.tint : C.border,
+              },
+            ]}
+          >
+            <Ionicons name="person-outline" size={18} color={nameFocused ? C.tint : C.textMuted} style={styles.inputIcon} />
+            <TextInput
+              style={[styles.input, { color: C.text, fontFamily: "Inter_400Regular" }]}
+              placeholder="Driver Name"
+              placeholderTextColor={C.textMuted}
+              value={name}
+              onChangeText={(t) => { setName(t); setError(""); }}
+              autoCapitalize="words"
+              returnKeyType="next"
+              onFocus={() => setNameFocused(true)}
+              onBlur={() => setNameFocused(false)}
+            />
+          </View>
+
           {/* Email */}
           <View
             style={[
@@ -130,10 +163,6 @@ export default function LoginScreen() {
               {
                 backgroundColor: C.backgroundCard,
                 borderColor: emailFocused ? C.tint : C.border,
-                shadowColor: emailFocused ? C.tint : "transparent",
-                shadowOpacity: emailFocused ? 0.3 : 0,
-                shadowRadius: 8,
-                elevation: emailFocused ? 4 : 0,
               },
             ]}
           >
@@ -159,10 +188,6 @@ export default function LoginScreen() {
               {
                 backgroundColor: C.backgroundCard,
                 borderColor: passFocused ? C.tint : C.border,
-                shadowColor: passFocused ? C.tint : "transparent",
-                shadowOpacity: passFocused ? 0.3 : 0,
-                shadowRadius: 8,
-                elevation: passFocused ? 4 : 0,
               },
             ]}
           >
@@ -217,7 +242,7 @@ export default function LoginScreen() {
           </Animated.View>
 
           <Text style={[styles.hint, { color: C.textMuted, fontFamily: "Inter_400Regular" }]}>
-            Enter any email & password to continue
+            Enter your name, email & password to continue
           </Text>
         </Animated.View>
 
@@ -230,6 +255,7 @@ export default function LoginScreen() {
             </Text>
           </View>
         </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
@@ -247,7 +273,7 @@ const styles = StyleSheet.create({
     position: "absolute", bottom: 60, left: -80,
     width: 200, height: 200, borderRadius: 100,
   },
-  inner: { flex: 1, paddingHorizontal: 24 },
+  inner: { flexGrow: 1, paddingHorizontal: 24, justifyContent: "center" },
   logoArea: { alignItems: "center", marginBottom: 48 },
   iconWrapper: { marginBottom: 16, position: "relative" },
   iconGradient: {
@@ -263,7 +289,7 @@ const styles = StyleSheet.create({
   },
   appName: { fontSize: 34, letterSpacing: -0.5 },
   tagline: { fontSize: 14, marginTop: 5 },
-  formArea: { flex: 1 },
+  formArea: { width: "100%", marginTop: 10 },
   formTitle: { fontSize: 22, marginBottom: 24 },
   inputWrapper: {
     flexDirection: "row", alignItems: "center",
@@ -279,7 +305,7 @@ const styles = StyleSheet.create({
   loginBtnInner: { height: 56, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   loginBtnText: { color: "#fff", fontSize: 16 },
   hint: { textAlign: "center", fontSize: 12, marginTop: 18 },
-  footer: { alignItems: "center", marginTop: 24 },
+  footer: { alignItems: "center", marginTop: "auto", paddingTop: 40 },
   footerPill: {
     flexDirection: "row", alignItems: "center", gap: 6,
     paddingHorizontal: 14, paddingVertical: 8,

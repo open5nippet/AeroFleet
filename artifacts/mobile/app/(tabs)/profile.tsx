@@ -105,13 +105,16 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const { driver, logout } = useAuth();
-  const { events, isRecording, recordingDuration, speed } = useRecording();
+  const { events, isRecording, recordingDuration, speed, stopRecording, clearAllEvents } = useRecording();
 
   // Simulated session distance: speed × time in seconds → meters → km
   const sessionDistanceKm = (speed * recordingDuration) / 3600;
   const clipsRecorded = Math.floor(recordingDuration / 300) + (isRecording ? 1 : 0);
 
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [alertsEnabled, setAlertsEnabled] = useState(true);
+  const [autoUpload, setAutoUpload] = useState(true);
+  const [clipDuration, setClipDuration] = useState("5 min");
 
   useEffect(() => {
     (async () => {
@@ -170,19 +173,64 @@ export default function ProfileScreen() {
     );
   };
 
-  const handleLogout = () => {
+  const handleSwitchProfile = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+    Alert.alert("Switch Profile", "Are you sure you want to sign out? This allows another driver to log in on this device.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Switch",
+        style: "destructive",
+        onPress: async () => {
+          if (isRecording) stopRecording();
+          clearAllEvents();
+          await logout();
+          router.replace("/");
+        },
+      },
+    ]);
+  };
+
+  const handleSignOut = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert("Sign Out", "Are you sure you want to sign out of this device?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Sign Out",
         style: "destructive",
         onPress: async () => {
+          if (isRecording) stopRecording();
+          clearAllEvents();
           await logout();
-          router.replace("/login");
+          router.replace("/");
         },
       },
     ]);
+  };
+
+  const handleAlertsToggle = () => {
+    Haptics.selectionAsync();
+    setAlertsEnabled(!alertsEnabled);
+  };
+
+  const handleUploadToggle = () => {
+    Haptics.selectionAsync();
+    setAutoUpload(!autoUpload);
+  };
+
+  const handleClipDuration = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert("Clip Duration", "Select loop recording video segment duration.", [
+      { text: "1 min", onPress: () => setClipDuration("1 min") },
+      { text: "3 min", onPress: () => setClipDuration("3 min") },
+      { text: "5 min", onPress: () => setClipDuration("5 min") },
+      { text: "10 min", onPress: () => setClipDuration("10 min") },
+      { text: "Cancel", style: "cancel" }
+    ]);
+  };
+
+  const handlePrivacy = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert("Privacy Overview", "AeroFleet uses end-to-end encryption. Your telemetry data is only visible to your authorized fleet administrator.", [{text: "I Understand"}]);
   };
 
   const totalSOS = events.filter((e) => e.type === "sos").length;
@@ -225,11 +273,19 @@ export default function ProfileScreen() {
           <Text style={[styles.driverEmail, { color: C.textSecondary, fontFamily: "Inter_400Regular" }]}>
             {driver?.email ?? "—"}
           </Text>
-          <View style={[styles.driverIdBadge, { backgroundColor: C.backgroundCard, borderColor: C.borderStrong }]}>
-            <Ionicons name="car" size={13} color={C.tint} />
-            <Text style={[styles.driverIdText, { color: C.tint, fontFamily: "Inter_600SemiBold" }]}>
-              {driver?.vehicleId ?? "---"}
-            </Text>
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
+            <View style={[styles.driverIdBadge, { backgroundColor: C.backgroundCard, borderColor: C.borderStrong }]}>
+              <Ionicons name="car" size={13} color={C.tint} />
+              <Text style={[styles.driverIdText, { color: C.tint, fontFamily: "Inter_600SemiBold" }]}>
+                {driver?.vehicleId ?? "---"}
+              </Text>
+            </View>
+            <Pressable onPress={handleSwitchProfile} style={[styles.driverIdBadge, { backgroundColor: "rgba(255,59,48,0.1)", borderColor: "rgba(255,59,48,0.3)" }]}>
+              <Ionicons name="swap-horizontal" size={13} color={C.danger} />
+              <Text style={[styles.driverIdText, { color: C.danger, fontFamily: "Inter_600SemiBold" }]}>
+                Switch Profile
+              </Text>
+            </Pressable>
           </View>
         </View>
 
@@ -323,8 +379,14 @@ export default function ProfileScreen() {
             DRIVER INFO
           </Text>
           <View style={styles.sectionItems}>
-            <MenuItem icon="person-outline" label="Driver ID" value={driver?.id?.slice(0, 12) ?? "---"} color={C.tint} tint={C.tint} text={C.text} textMuted={C.textMuted} backgroundCard={C.backgroundCard} border={C.border} />
-            <MenuItem icon="car-outline" label="Vehicle" value={driver?.vehicleId ?? "---"} color={C.tint} tint={C.tint} text={C.text} textMuted={C.textMuted} backgroundCard={C.backgroundCard} border={C.border} />
+            <MenuItem 
+              icon="person-outline" label="Driver ID" value={driver?.id?.slice(0, 12) ?? "---"} color={C.tint} tint={C.tint} text={C.text} textMuted={C.textMuted} backgroundCard={C.backgroundCard} border={C.border} 
+              onPress={() => Alert.alert("Restricted", "Driver ID is permanently assigned by your fleet organization and cannot be changed on this device.")}
+            />
+            <MenuItem 
+              icon="car-outline" label="Vehicle" value={driver?.vehicleId ?? "---"} color={C.tint} tint={C.tint} text={C.text} textMuted={C.textMuted} backgroundCard={C.backgroundCard} border={C.border} 
+              onPress={() => Alert.alert("Vehicle Info", "Vehicle mapping is managed via the backend control center.")}
+            />
             <MenuItem
               icon="radio-button-on" label="Status"
               value={isRecording ? "Recording" : "Standby"}
@@ -382,10 +444,10 @@ export default function ProfileScreen() {
             APP SETTINGS
           </Text>
           <View style={styles.sectionItems}>
-            <MenuItem icon="notifications-outline" label="Alerts" color={C.warning} tint={C.tint} text={C.text} textMuted={C.textMuted} backgroundCard={C.backgroundCard} border={C.border} />
-            <MenuItem icon="cloud-upload-outline" label="Auto Upload" color="#8E8E93" value="On" tint={C.tint} text={C.text} textMuted={C.textMuted} backgroundCard={C.backgroundCard} border={C.border} />
-            <MenuItem icon="time-outline" label="Clip Duration" value="5 min" color="#8E8E93" tint={C.tint} text={C.text} textMuted={C.textMuted} backgroundCard={C.backgroundCard} border={C.border} />
-            <MenuItem icon="shield-checkmark-outline" label="Privacy" color={C.success} tint={C.tint} text={C.text} textMuted={C.textMuted} backgroundCard={C.backgroundCard} border={C.border} />
+            <MenuItem onPress={handleAlertsToggle} icon={alertsEnabled ? "notifications-outline" : "notifications-off-outline"} label="Alerts" value={alertsEnabled ? "On" : "Off"} color={alertsEnabled ? C.warning : C.textMuted} tint={C.tint} text={C.text} textMuted={C.textMuted} backgroundCard={C.backgroundCard} border={C.border} />
+            <MenuItem onPress={handleUploadToggle} icon="cloud-upload-outline" label="Auto Upload" color={autoUpload ? "#00D4FF" : "#8E8E93"} value={autoUpload ? "On" : "Off"} tint={C.tint} text={C.text} textMuted={C.textMuted} backgroundCard={C.backgroundCard} border={C.border} />
+            <MenuItem onPress={handleClipDuration} icon="time-outline" label="Clip Duration" value={clipDuration} color="#8E8E93" tint={C.tint} text={C.text} textMuted={C.textMuted} backgroundCard={C.backgroundCard} border={C.border} />
+            <MenuItem onPress={handlePrivacy} icon="shield-checkmark-outline" label="Privacy" color={C.success} tint={C.tint} text={C.text} textMuted={C.textMuted} backgroundCard={C.backgroundCard} border={C.border} />
           </View>
         </View>
 
@@ -394,12 +456,12 @@ export default function ProfileScreen() {
             SUPPORT
           </Text>
           <View style={styles.sectionItems}>
-            <MenuItem icon="help-circle-outline" label="Help & FAQ" color={C.tint} tint={C.tint} text={C.text} textMuted={C.textMuted} backgroundCard={C.backgroundCard} border={C.border} />
-            <MenuItem icon="information-circle-outline" label="App Version" value="1.0.0" color="#8E8E93" tint={C.tint} text={C.text} textMuted={C.textMuted} backgroundCard={C.backgroundCard} border={C.border} />
+            <MenuItem onPress={() => router.push("/help")} icon="help-circle-outline" label="Help & FAQ" color={C.tint} tint={C.tint} text={C.text} textMuted={C.textMuted} backgroundCard={C.backgroundCard} border={C.border} />
+            <MenuItem icon="information-circle-outline" label="App Version" value="2.0.0" color="#8E8E93" tint={C.tint} text={C.text} textMuted={C.textMuted} backgroundCard={C.backgroundCard} border={C.border} />
           </View>
         </View>
 
-        <Pressable onPress={handleLogout} style={({ pressed }) => [styles.logoutBtn, { opacity: pressed ? 0.8 : 1 }]}>
+        <Pressable onPress={handleSignOut} style={({ pressed }) => [styles.logoutBtn, { opacity: pressed ? 0.8 : 1 }]}>
           <View style={[styles.logoutInner, { backgroundColor: "rgba(255,59,48,0.1)", borderColor: "rgba(255,59,48,0.3)" }]}>
             <Ionicons name="log-out-outline" size={18} color={C.danger} />
             <Text style={[styles.logoutText, { color: C.danger, fontFamily: "Inter_600SemiBold" }]}>Sign Out</Text>

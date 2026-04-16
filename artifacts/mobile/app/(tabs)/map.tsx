@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RNMapView from "@/components/RNMapView";
 import { ColorScheme } from "@/constants/colors";
 import { useTheme } from "@/context/ThemeContext";
+import { useRecording } from "@/context/RecordingContext";
 import {
   Coordinates,
   GeocodeResult,
@@ -64,6 +65,7 @@ function SuggestionItem({ item, onPress, C }: { item: GeocodeResult; onPress: ()
 
 export default function MapScreen() {
   const { colors: C } = useTheme();
+  const { isRecording, startRecording, stopRecording } = useRecording();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const topPad = IS_WEB ? 67 : insets.top;
@@ -88,6 +90,37 @@ export default function MapScreen() {
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
   const [locPermission, requestLocPermission] = Location.useForegroundPermissions();
   const cardAnim = useRef(new Animated.Value(0)).current;
+  const topUiAnim = useRef(new Animated.Value(1)).current;
+
+  // Navigation Camera Animation Effect
+  React.useEffect(() => {
+    Animated.spring(topUiAnim, {
+      toValue: isRecording ? 0 : 1,
+      tension: 60,
+      friction: 12,
+      useNativeDriver: true,
+    }).start();
+
+    if (!IS_WEB && mapRef.current) {
+      if (isRecording) {
+        setTimeout(() => {
+          mapRef.current?.animateCamera?.({
+            center: userLocation || originCoords || { latitude: 28.6139, longitude: 77.209 },
+            pitch: 65,
+            zoom: 18.5,
+            heading: 0,
+          }, { duration: 1500 });
+        }, 100);
+      } else if (route) {
+        setTimeout(() => {
+          mapRef.current?.fitToCoordinates?.(route.coordinates, {
+            edgePadding: { top: 120, right: 40, bottom: isSmall ? 280 : 320, left: 40 },
+            animated: true,
+          });
+        }, 100);
+      }
+    }
+  }, [isRecording]);
 
   const search = useCallback((text: string) => {
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
@@ -335,17 +368,24 @@ export default function MapScreen() {
       </View>
       <View style={{ paddingHorizontal: 18, paddingBottom: 16 }}>
         <Pressable
-          onPress={() => router.push("/(tabs)/dashboard")}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            if (isRecording) {
+              stopRecording();
+            } else {
+              startRecording();
+            }
+          }}
           style={({ pressed }) => [styles.startBtn, { opacity: pressed ? 0.8 : 1 }]}
         >
           <LinearGradient
-            colors={["#00D4FF", "#0070A8"]}
+            colors={isRecording ? ["#FF3B30", "#C81F16"] : ["#00D4FF", "#0070A8"]}
             style={styles.startBtnInner}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
           >
-            <Ionicons name="navigate-circle" size={20} color="#fff" />
+            <Ionicons name={isRecording ? "stop-circle" : "navigate-circle"} size={20} color="#fff" />
             <Text style={[styles.startBtnText, { fontFamily: "Inter_600SemiBold" }]}>
-              Start Navigation
+              {isRecording ? "Stop Navigation" : "Start Navigation"}
             </Text>
           </LinearGradient>
         </Pressable>
@@ -398,16 +438,27 @@ export default function MapScreen() {
         hasLocationPermission={!!locPermission?.granted}
       />
 
-      <LinearGradient
-        colors={C.isDark
-          ? ["rgba(6,8,16,0.95)", "rgba(6,8,16,0.85)", "rgba(6,8,16,0.2)", "transparent"]
-          : ["rgba(240,244,251,0.95)", "rgba(240,244,251,0.85)", "rgba(240,244,251,0.2)", "transparent"]}
-        style={[styles.topGradient, { paddingTop: topPad + 12 }]}
+      <Animated.View
+        style={[
+          styles.topGradientWrapper,
+          {
+            opacity: topUiAnim,
+            transform: [{ translateY: topUiAnim.interpolate({ inputRange: [0, 1], outputRange: [-250, 0] }) }],
+          }
+        ]}
+        pointerEvents={isRecording ? "none" : "box-none"}
       >
-        <View style={{ paddingHorizontal: 20, gap: 8 }}>
-          {SearchPanel}
-        </View>
-      </LinearGradient>
+        <LinearGradient
+          colors={C.isDark
+            ? ["rgba(6,8,16,0.95)", "rgba(6,8,16,0.85)", "rgba(6,8,16,0.2)", "transparent"]
+            : ["rgba(240,244,251,0.95)", "rgba(240,244,251,0.85)", "rgba(240,244,251,0.2)", "transparent"]}
+          style={[styles.topGradient, { paddingTop: topPad + 12 }]}
+        >
+          <View style={{ paddingHorizontal: 20, gap: 8 }}>
+            {SearchPanel}
+          </View>
+        </LinearGradient>
+      </Animated.View>
 
       {RouteCard && (
         <View style={[styles.bottomCard, { bottom: bottomPad + 76, left: 20, right: 20 }]}>
@@ -437,6 +488,7 @@ export default function MapScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  topGradientWrapper: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 10 },
   screenTitle: { fontSize: 26, marginBottom: 4 },
   screenSub: { fontSize: 13, marginBottom: 20 },
   topGradient: { paddingBottom: 24 },

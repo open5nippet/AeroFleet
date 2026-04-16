@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import Head from "expo-router/head";
-import React, { useState } from "react";
+import { useFocusEffect } from "expo-router";
+import React, { useState, useCallback } from "react";
 import {
   Alert,
   FlatList,
@@ -103,10 +104,15 @@ export default function EventsScreen() {
   const { colors: C } = useTheme();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
-  const { events } = useRecording();
+  const { events, markEventsRead, clearAllEvents } = useRecording();
   const [filter, setFilter] = useState<EventType | "all">("all");
 
-  // Access internal state setter via a workaround using the context's addEvent reference
+  useFocusEffect(
+    useCallback(() => {
+      markEventsRead();
+    }, [markEventsRead])
+  );
+
   const clearAll = () => {
     Alert.alert(
       "Clear All Events",
@@ -116,14 +122,7 @@ export default function EventsScreen() {
         {
           text: "Clear All",
           style: "destructive",
-          onPress: async () => {
-            try {
-              await AsyncStorage.removeItem("aerofleet_events");
-              // Force reload by triggering a fake event and immediately removing — 
-              // since we can't reset events from context, we show a message
-              Alert.alert("Cleared", "Restart the app to see the empty list.");
-            } catch {}
-          },
+          onPress: clearAllEvents,
         },
       ]
     );

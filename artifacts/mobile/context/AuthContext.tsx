@@ -11,7 +11,7 @@ export type Driver = {
 type AuthContextType = {
   driver: Driver | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
 };
 
@@ -33,11 +33,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    if (!email.trim() || !password.trim()) return false;
+  const login = async (name: string, email: string, password: string): Promise<boolean> => {
+    if (!name.trim() || !email.trim() || !password.trim()) return false;
     const mockDriver: Driver = {
       id: "DRV-" + Date.now().toString(36).toUpperCase(),
-      name: email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+      name: name.trim(),
       vehicleId: "VH-" + Math.floor(1000 + Math.random() * 9000),
       email,
     };
