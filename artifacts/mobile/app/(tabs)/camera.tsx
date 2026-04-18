@@ -8,6 +8,7 @@ import {
   Animated,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -251,7 +252,7 @@ export default function CameraScreen() {
 
       <LinearGradient
         colors={["transparent", "rgba(0,0,0,0.95)"]}
-        style={[styles.bottomOverlay, { paddingBottom: bottomPad > 0 ? bottomPad + 16 : 32 }]}
+        style={[styles.bottomOverlay, { paddingBottom: bottomPad > 0 ? bottomPad + 75 : 90 }]}
       >
         {/* Mock Triggers Row */}
         <View style={styles.eventRow}>
@@ -310,12 +311,10 @@ export default function CameraScreen() {
       </LinearGradient>
 
       {showQualityPicker && (
-        <Pressable style={styles.qualityBackdrop} onPress={closeQualityPicker}>
+        <View style={styles.qualityBackdrop} pointerEvents="box-none">
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeQualityPicker} />
           <Animated.View
-            style={[
-              styles.qualityPanel,
-              { transform: [{ translateY: panelTranslate }] },
-            ]}
+            style={[styles.qualityPanel, { paddingBottom: Math.max(bottomPad, 16) + 90, transform: [{ translateY: panelTranslate }] }]}
           >
             <View style={styles.qualityPanelHandle} />
             <Text style={[styles.qualityPanelTitle, { fontFamily: "Inter_700Bold" }]}>
@@ -324,7 +323,11 @@ export default function CameraScreen() {
             <Text style={[styles.qualityPanelSubtitle, { fontFamily: "Inter_400Regular" }]}>
               Higher quality uses more storage
             </Text>
-            <View style={styles.qualityOptions}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.qualityOptions}
+              bounces={false}
+            >
               {QUALITY_OPTIONS.map((q) => {
                 const active = videoQuality === q;
                 const labels: Record<VideoQuality, string> = {
@@ -347,7 +350,7 @@ export default function CameraScreen() {
                   >
                     <View style={styles.qualityOptionLeft}>
                       <View style={[styles.qualityDot, { backgroundColor: active ? "#00D4FF" : "rgba(255,255,255,0.3)" }]} />
-                      <View>
+                      <View style={{ flex: 1 }}>
                         <Text style={[styles.qualityOptionLabel, { color: active ? "#00D4FF" : "#fff", fontFamily: "Inter_600SemiBold" }]}>
                           {q}
                         </Text>
@@ -360,9 +363,9 @@ export default function CameraScreen() {
                   </Pressable>
                 );
               })}
-            </View>
+            </ScrollView>
           </Animated.View>
-        </Pressable>
+        </View>
       )}
       {/* Event Toast */}
       {toastMsg && (
@@ -479,7 +482,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     padding: 24,
-    paddingBottom: 40,
+    maxHeight: "80%",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
     gap: 4,
@@ -491,12 +494,12 @@ const styles = StyleSheet.create({
   },
   qualityPanelTitle: { fontSize: 18, color: "#fff", marginBottom: 2 },
   qualityPanelSubtitle: { fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 16 },
-  qualityOptions: { gap: 10 },
+  qualityOptions: { gap: 10, paddingBottom: 4 },
   qualityOption: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     borderRadius: 14, borderWidth: 1, padding: 14,
   },
-  qualityOptionLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+  qualityOptionLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1, paddingRight: 12 },
   qualityDot: { width: 10, height: 10, borderRadius: 5 },
   qualityOptionLabel: { fontSize: 16, marginBottom: 2 },
   qualityOptionDesc: { fontSize: 12 },
