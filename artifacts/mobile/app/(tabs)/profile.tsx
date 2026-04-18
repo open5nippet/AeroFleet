@@ -22,7 +22,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useRecording } from "@/context/RecordingContext";
 import { ThemePreference, useTheme } from "@/context/ThemeContext";
 import { ColorScheme } from "@/constants/colors";
-import { TAB_BAR_BOTTOM_OFFSET } from "@/components/CustomTabBar";
+import { TAB_BAR_OFFSET } from "@/components/CustomTabBar";
+import { useWindowDimensions } from "react-native";
 
 // ─── Achievement Badge ─────────────────────────────────────────────────────
 function AchievementBadge({
@@ -104,6 +105,8 @@ const THEME_OPTIONS: { key: ThemePreference; label: string; icon: string }[] = [
 export default function ProfileScreen() {
   const { colors: C, theme, setTheme } = useTheme();
   const { driver, logout } = useAuth();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
   const { events, isRecording, recordingDuration, speed, stopRecording, clearAllEvents } = useRecording();
 
   // Simulated session distance: speed × time in seconds → meters → km
@@ -244,8 +247,13 @@ export default function ProfileScreen() {
         <meta property="og:description" content="AI Dashcam & Fleet Safety Platform — driver profile." />
       </Head>
       <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[styles.scroll, { paddingTop: Platform.OS === "web" ? 87 : 16 }]}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ 
+          paddingTop: 16,
+          paddingLeft: isLandscape ? TAB_BAR_OFFSET : 20,
+          paddingRight: 20,
+          paddingBottom: isLandscape ? 20 : TAB_BAR_OFFSET,
+        }}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.avatarArea}>
@@ -467,7 +475,6 @@ export default function ProfileScreen() {
           </View>
         </Pressable>
 
-        <View style={{ height: TAB_BAR_BOTTOM_OFFSET }} />
       </ScrollView>
     </SafeAreaView>
   );

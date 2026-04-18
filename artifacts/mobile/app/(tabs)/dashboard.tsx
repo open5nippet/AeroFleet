@@ -18,7 +18,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useRecording } from "@/context/RecordingContext";
 import { useTheme } from "@/context/ThemeContext";
 import { ColorScheme } from "@/constants/colors";
-import { TAB_BAR_BOTTOM_OFFSET } from "@/components/CustomTabBar";
+import { TAB_BAR_OFFSET } from "@/components/CustomTabBar";
+import { useWindowDimensions } from "react-native";
 
 function formatDuration(seconds: number) {
   const h = Math.floor(seconds / 3600);
@@ -179,6 +180,9 @@ export default function DashboardScreen() {
     speed, accelerometerData, gyroscopeData, events,
     startRecording, stopRecording,
   } = useRecording();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const headerAnim = useRef(new Animated.Value(0)).current;
 
@@ -257,9 +261,19 @@ export default function DashboardScreen() {
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         style={{ flex: 1 }}
-        contentContainerStyle={[styles.scroll, { paddingTop: Platform.OS === "web" ? 83 : 16 }]}
+        contentContainerStyle={[
+          styles.scroll, 
+          { 
+            paddingTop: Platform.OS === "web" ? 83 : 16,
+            paddingLeft: isLandscape ? TAB_BAR_OFFSET : 20,
+            paddingRight: 20,
+            paddingBottom: isLandscape ? 20 : TAB_BAR_OFFSET,
+          }
+        ]}
         showsVerticalScrollIndicator={false}
       >
+        <View style={isLandscape ? styles.landscapeLayout : styles.portraitLayout}>
+          <View style={isLandscape ? styles.leftColumn : null}>
         {/* Alert Banner */}
         {alertMsg && (
           <AlertBanner message={alertMsg} C={C} onDismiss={() => setAlertMsg(null)} />
@@ -325,11 +339,14 @@ export default function DashboardScreen() {
             >
               <Ionicons name={isRecording ? "stop" : "play"} size={28} color="#fff" />
               <Text style={[styles.bigBtnText, { fontFamily: "Inter_700Bold" }]}>
-                {isRecording ? "Stop Recording" : "Start Recording"}
+                {isRecording ? "Stop" : "Start Recording"}
               </Text>
             </LinearGradient>
           </Pressable>
         </View>
+      </View>
+
+      <View style={isLandscape ? styles.rightColumn : null}>
 
         {/* Trip Summary Strip */}
         {isRecording && (
@@ -458,10 +475,11 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        <View style={{ height: TAB_BAR_BOTTOM_OFFSET }} />
-      </ScrollView>
-    </SafeAreaView>
-  );
+        </View>
+      </View>
+    </ScrollView>
+  </SafeAreaView>
+);
 }
 
 const styles = StyleSheet.create({
@@ -531,4 +549,10 @@ const styles = StyleSheet.create({
   },
   statNum: { fontSize: 17 },
   statLabel: { fontSize: 10, textAlign: "center" },
+  
+  // Responsive dual-column
+  landscapeLayout: { flexDirection: "row", gap: 24 },
+  portraitLayout: { flexDirection: "column" },
+  leftColumn: { flex: 1 },
+  rightColumn: { flex: 1.2, gap: 4 },
 });

@@ -25,6 +25,7 @@ import RNMapView from "@/components/RNMapView";
 import { ColorScheme } from "@/constants/colors";
 import { useTheme } from "@/context/ThemeContext";
 import { useRecording } from "@/context/RecordingContext";
+import { TAB_BAR_OFFSET } from "@/components/CustomTabBar";
 import {
   Coordinates,
   GeocodeResult,
@@ -67,7 +68,8 @@ export default function MapScreen() {
   const { colors: C } = useTheme();
   const { isRecording, startRecording, stopRecording } = useRecording();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
   const topPad = IS_WEB ? 67 : insets.top;
   const bottomPad = IS_WEB ? 34 : insets.bottom;
   const isSmall = width < 380;
@@ -452,7 +454,13 @@ export default function MapScreen() {
           colors={C.isDark
             ? ["rgba(6,8,16,0.95)", "rgba(6,8,16,0.85)", "rgba(6,8,16,0.2)", "transparent"]
             : ["rgba(240,244,251,0.95)", "rgba(240,244,251,0.85)", "rgba(240,244,251,0.2)", "transparent"]}
-          style={[styles.topGradient, { paddingTop: topPad + 12 }]}
+          style={[
+            styles.topGradient, 
+            { 
+              paddingTop: topPad + 12,
+              paddingLeft: isLandscape ? TAB_BAR_OFFSET : 0 
+            }
+          ]}
         >
           <View style={{ paddingHorizontal: 20, gap: 8 }}>
             {SearchPanel}
@@ -461,7 +469,16 @@ export default function MapScreen() {
       </Animated.View>
 
       {RouteCard && (
-        <View style={[styles.bottomCard, { bottom: bottomPad + 76, left: 20, right: 20 }]}>
+        <View 
+          style={[
+            styles.bottomCard, 
+            { 
+              bottom: isLandscape ? 20 : bottomPad + 76, 
+              left: isLandscape ? TAB_BAR_OFFSET + 20 : 20, 
+              right: 20 
+            }
+          ]}
+        >
           {RouteCard}
         </View>
       )}
@@ -472,7 +489,7 @@ export default function MapScreen() {
           style={[
             styles.locFab,
             {
-              bottom: bottomPad + (route ? 180 : 86),
+              bottom: isLandscape ? 80 : bottomPad + (route ? 180 : 86),
               right: 20,
               backgroundColor: C.backgroundCard,
               borderColor: C.border,

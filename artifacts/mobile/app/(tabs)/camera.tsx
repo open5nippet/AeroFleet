@@ -19,6 +19,8 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 
 import { useRecording } from "@/context/RecordingContext";
 import { useTheme } from "@/context/ThemeContext";
+import { TAB_BAR_OFFSET } from "@/components/CustomTabBar";
+import { useWindowDimensions } from "react-native";
 
 type VideoQuality = "480p" | "720p" | "1080p" | "4K";
 const QUALITY_OPTIONS: VideoQuality[] = ["480p", "720p", "1080p", "4K"];
@@ -35,6 +37,8 @@ function formatDuration(seconds: number) {
 export default function CameraScreen() {
   const { colors: C } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
@@ -208,7 +212,13 @@ export default function CameraScreen() {
 
       <LinearGradient
         colors={["rgba(0,0,0,0.8)", "transparent"]}
-        style={[styles.topOverlay, { paddingTop: topPad + 12 }]}
+        style={[
+          styles.topOverlay, 
+          { 
+            paddingTop: topPad + 12,
+            paddingLeft: isLandscape ? TAB_BAR_OFFSET + 10 : 20 
+          }
+        ]}
       >
         <View style={styles.topBar}>
           {/* Left: Speed */}
@@ -252,7 +262,13 @@ export default function CameraScreen() {
 
       <LinearGradient
         colors={["transparent", "rgba(0,0,0,0.95)"]}
-        style={[styles.bottomOverlay, { paddingBottom: bottomPad > 0 ? bottomPad + 75 : 90 }]}
+        style={[
+          styles.bottomOverlay, 
+          { 
+            paddingBottom: bottomPad > 0 ? bottomPad + 75 : 90,
+            paddingLeft: isLandscape ? TAB_BAR_OFFSET + 10 : 20
+          }
+        ]}
       >
         {/* Mock Triggers Row */}
         <View style={styles.eventRow}>

@@ -11,6 +11,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,7 +20,7 @@ import { EventType, SafetyEvent, useRecording } from "@/context/RecordingContext
 import { useTheme } from "@/context/ThemeContext";
 import { ColorScheme } from "@/constants/colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { TAB_BAR_BOTTOM_OFFSET } from "@/components/CustomTabBar";
+import { TAB_BAR_OFFSET } from "@/components/CustomTabBar";
 
 const EVENT_CONFIG: Record<EventType, { label: string; icon: string; color: string; bg: string }> = {
   harsh_brake: { label: "Harsh Braking", icon: "warning", color: "#FF9500", bg: "rgba(255,149,0,0.15)" },
@@ -104,6 +105,8 @@ const rowStyles = StyleSheet.create({
 export default function EventsScreen() {
   const { colors: C } = useTheme();
   const { events, markEventsRead, clearAllEvents } = useRecording();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
   const [filter, setFilter] = useState<EventType | "all">("all");
 
   useFocusEffect(
@@ -154,7 +157,15 @@ export default function EventsScreen() {
         data={filtered}
         keyExtractor={(item) => item.id}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[styles.listContent, { paddingTop: Platform.OS === "web" ? 83 : 16 }]}
+        contentContainerStyle={[
+          styles.listContent, 
+          { 
+            paddingLeft: isLandscape ? TAB_BAR_OFFSET : 20,
+            paddingRight: 20,
+            paddingBottom: isLandscape ? 20 : TAB_BAR_OFFSET,
+            paddingTop: Platform.OS === "web" ? 83 : 16 
+          }
+        ]}
         ListHeaderComponent={
           <>
             {/* Header Row */}
@@ -263,7 +274,7 @@ export default function EventsScreen() {
         }
         renderItem={({ item }) => <EventRow item={item} C={C} />}
         ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-        ListFooterComponent={<View style={{ height: TAB_BAR_BOTTOM_OFFSET }} />}
+        ListFooterComponent={null}
         showsVerticalScrollIndicator={false}
       />
     </SafeAreaView>

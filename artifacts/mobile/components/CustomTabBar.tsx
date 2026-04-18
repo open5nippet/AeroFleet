@@ -1,12 +1,10 @@
 /**
- * CustomTabBar — Neon-Morphism Floating Notch (v4)
+ * CustomTabBar — Neon-Morphism Responsive dual-layout (v6.1)
  *
- * v4 changes:
- *  - Text always visible (inactive = lavender, active = neon cyan)
- *  - Scale spring animation on text when tab is tapped
- *  - Float height capped so icon stays within dark bar background
- *  - High zIndex + elevation to always render on top of app content
- *  - Exports TAB_BAR_BOTTOM_OFFSET for use in screen paddingBottom
+ * v6.1 changes:
+ *  - Fixed vertical SVG path logic for clearer "Side Rail" rendering.
+ *  - Improved G-transform for left rail to handle safe area correctly.
+ *  - Optimized animation axis handling for seamless rotation.
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -14,48 +12,54 @@ import {
   View,
   StyleSheet,
   Pressable,
-  Dimensions,
+  useWindowDimensions,
   Animated,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import Svg, { Path, G } from 'react-native-svg';
 
-// ─── Constants (exported so screens can set correct paddingBottom) ─────────────
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+// ─── Constants ────────────────────────────────────────────────────────────────
+const BAR_SIZE     = 76;   // Thickness of the bar (height in P, width in L)
+const OVERREACH    = 38;   // Space for the crater curves
+const TOTAL_SIZE   = BAR_SIZE + OVERREACH;
 
-const BAR_HEIGHT   = 76;   // bar body height
-const OVERREACH    = 38;   // canvas space above bar that the crater curve uses
-const TOTAL_SVG_H  = BAR_HEIGHT + OVERREACH;  // = 114
-
-// Geometry: the icon float must NOT exceed this so it stays on the dark bg.
-// Crater deepest point is at (OVERREACH + NOTCH_DEPTH) = 68 from SVG top.
-// Icon center at rest is at TOTAL_SVG_H/2 ≈ 57 from rowContainer top + OVERREACH from SVG top = ~95.
-// Safe float = 95 - (68 + half_icon_height=13) = 14px max.
-const FLOAT_Y      = -14;  // safe upward float — stays inside the dark crater
-
-// Curve geometry
 const NOTCH_HALF_W = 68;
 const NOTCH_DEPTH  = 30;
 
-// Brand palette — always dark, never changes with theme
-const BAR_COLOR  = '#1A1F3C';
-const NEON       = '#00E5FF';
-const INACTIVE   = 'rgba(148, 157, 213, 0.55)';
+const FLOAT_DIST   = 14;   // Distance active icon floats into the notch
+
+const BAR_COLOR    = '#1A1F3C';
+const NEON         = '#00E5FF';
+const INACTIVE     = 'rgba(148, 157, 213, 0.55)';
 
 /**
- * Exported constant — add this as paddingBottom to your screen ScrollViews
- * so content doesn't scroll under the nav bar.
- * Usage:  contentContainerStyle={{ paddingBottom: TAB_BAR_BOTTOM_OFFSET }}
+ * Responsive offset for screens to avoid the navigation bar.
  */
-export const TAB_BAR_BOTTOM_OFFSET = TOTAL_SVG_H + 8; // 122px
+export const TAB_BAR_OFFSET = TOTAL_SIZE + 8;
+
+// ─── Custom Icons ─────────────────────────────────────────────────────────────
+function CustomMapIcon({ color, size }: { color: string; size: number }) {
+  const scale = size / 24;
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <G scale={scale}>
+        <Path
+          d="M12,2 C8.13,2 5,5.13 5,9 C5,14.25 12,22 12,22 C12,22 19,14.25 19,9 C19,5.13 15.87,2 12,2 Z M12,13 C9.79,13 8,11.21 8,9 C8,6.79 9.79,5 12,5 C14.21,5 16,6.79 16,9 C16,11.21 14.21,13 12,13 Z"
+          fill={color}
+          fillRule="evenodd"
+        />
+      </G>
+    </Svg>
+  );
+}
 
 // ─── Tab metadata ─────────────────────────────────────────────────────────────
-type TabDef = { lib: 'ionicons' | 'feather'; icon: string; label: string };
+type TabDef = { lib: 'ionicons' | 'feather' | 'custom'; icon: string; label: string };
 const TABS: Record<string, TabDef> = {
   dashboard: { lib: 'ionicons', icon: 'speedometer-outline', label: 'Dashboard' },
   camera:    { lib: 'feather',  icon: 'video',               label: 'Camera'    },
-  map:       { lib: 'ionicons', icon: 'map-outline',         label: 'Map'       },
+  map:       { lib: 'custom',   icon: 'custom-map',          label: 'Map'       },
   events:    { lib: 'ionicons', icon: 'warning-outline',     label: 'Events'    },
   profile:   { lib: 'feather',  icon: 'user',                label: 'Profile'   },
 };
@@ -63,34 +67,43 @@ const TABS: Record<string, TabDef> = {
 function TabIcon({ name, color, size }: { name: string; color: string; size: number }) {
   const def = TABS[name];
   if (!def) return <Ionicons name="help-circle-outline" size={size} color={color} />;
+  if (def.lib === 'custom') return <CustomMapIcon color={color} size={size} />;
   if (def.lib === 'feather') return <Feather name={def.icon as any} size={size} color={color} />;
   return <Ionicons name={def.icon as any} size={size} color={color} />;
 }
 
-// ─── SVG Path Builder ─────────────────────────────────────────────────────────
-function buildNotchPath(cx: number, extraBottom: number = 0): string {
-  const top  = OVERREACH;
+// ─── SVG Path Builders ────────────────────────────────────────────────────────
+function buildHorizontalPath(cx: number, screenW: number, extraB: number): string {
+  const top = OVERREACH;
   const deep = top + NOTCH_DEPTH;
-  const w    = NOTCH_HALF_W;
-  const lx   = cx - w;
-  const rx   = cx + w;
-  const bot  = TOTAL_SVG_H + extraBottom;
-
-  // Wide Bezier control points → smooth wave, not sharp bite
-  const cpL_x1 = lx + w * 0.45;  const cpL_y1 = top;
-  const cpL_x2 = cx - w * 0.18;  const cpL_y2 = deep;
-  const cpR_x1 = cx + w * 0.18;  const cpR_y1 = deep;
-  const cpR_x2 = rx - w * 0.45;  const cpR_y2 = top;
+  const w = NOTCH_HALF_W;
+  const lx = cx - w;
+  const rx = cx + w;
+  const bot = TOTAL_SIZE + extraB;
 
   return [
-    `M 0 ${bot}`,
-    `L 0 ${top}`,
-    `L ${lx} ${top}`,
-    `C ${cpL_x1} ${cpL_y1}, ${cpL_x2} ${cpL_y2}, ${cx} ${deep}`,
-    `C ${cpR_x1} ${cpR_y1}, ${cpR_x2} ${cpR_y2}, ${rx} ${top}`,
-    `L ${SCREEN_WIDTH} ${top}`,
-    `L ${SCREEN_WIDTH} ${bot}`,
-    `Z`,
+    `M 0 ${bot} L 0 ${top} L ${lx} ${top}`,
+    `C ${lx + w * 0.45} ${top}, ${cx - w * 0.18} ${deep}, ${cx} ${deep}`,
+    `C ${cx + w * 0.18} ${deep}, ${rx - w * 0.45} ${top}, ${rx} ${top}`,
+    `L ${screenW} ${top} L ${screenW} ${bot} Z`,
+  ].join(' ');
+}
+
+function buildVerticalPath(cy: number, screenH: number): string {
+  const left = OVERREACH; 
+  const deep = left + NOTCH_DEPTH;
+  const w = NOTCH_HALF_W;
+  const ty = cy - w;
+  const by = cy + w;
+  const right = TOTAL_SIZE;
+
+  // Carves into the bar from the right edge
+  // We flip this G-group for left rail placement
+  return [
+    `M ${right} 0 L ${left} 0 L ${left} ${ty}`,
+    `C ${left} ${ty + w * 0.45}, ${deep} ${cy - w * 0.18}, ${deep} ${cy}`,
+    `C ${deep} ${cy + w * 0.18}, ${left} ${by - w * 0.45}, ${left} ${by}`,
+    `L ${left} ${screenH} L ${right} ${screenH} Z`,
   ].join(' ');
 }
 
@@ -99,166 +112,118 @@ interface Props { state: any; descriptors: any; navigation: any; }
 
 export const CustomTabBar = ({ state, descriptors, navigation }: Props) => {
   const insets = useSafeAreaInsets();
-  const n      = state.routes.length;
-  const TAB_W  = SCREEN_WIDTH / n;
+  const { width: screenW, height: screenH } = useWindowDimensions();
+  const isLandscape = screenW > screenH;
+  
+  const n = state.routes.length;
+  const itemSize = isLandscape ? screenH / n : screenW / n;
 
-  // Notch X position — drives the SVG path rebuild frame by frame
-  const notchX = useRef(
-    new Animated.Value(state.index * TAB_W + TAB_W / 2)
+  const notchPos = useRef(new Animated.Value(state.index * itemSize + itemSize / 2)).current;
+  const floatAnims = useRef<Animated.Value[]>(
+    state.routes.map((_, i) => new Animated.Value(i === state.index ? FLOAT_DIST : 0))
   ).current;
-
-  // Per-icon: upward float into crater
-  const floatY = useRef<Animated.Value[]>(
-    state.routes.map((_: any, i: number) =>
-      new Animated.Value(i === state.index ? FLOAT_Y : 0)
-    )
-  ).current;
-
-  // Per-icon: label scale for tactile tap spring
   const labelScale = useRef<Animated.Value[]>(
     state.routes.map(() => new Animated.Value(1))
   ).current;
 
-  // Live SVG path string (rebuilt on every notchX frame)
-  const [svgPath, setSvgPath] = React.useState(() =>
-    buildNotchPath(state.index * TAB_W + TAB_W / 2, insets.bottom)
-  );
+  const [svgPath, setSvgPath] = React.useState('');
+
+  useEffect(() => {
+    const updatePath = (pos: number) => {
+      if (isLandscape) {
+        setSvgPath(buildVerticalPath(pos, screenH));
+      } else {
+        setSvgPath(buildHorizontalPath(pos, screenW, insets.bottom));
+      }
+    };
+    const id = notchPos.addListener(({ value }) => updatePath(value));
+    updatePath(state.index * itemSize + itemSize / 2);
+    return () => notchPos.removeListener(id);
+  }, [isLandscape, screenW, screenH, insets.bottom, itemSize]);
 
   const prevIndex = useRef(state.index);
 
-  // Rebuild SVG path as notchX animates
   useEffect(() => {
-    const id = notchX.addListener(({ value }) => {
-      setSvgPath(buildNotchPath(value, insets.bottom));
-    });
-    return () => notchX.removeListener(id);
-  }, [insets.bottom]);
-
-  // Animate on tab change
-  useEffect(() => {
-    const prev = prevIndex.current;
     const next = state.index;
-    if (prev === next) return;
+    const prev = prevIndex.current;
+    notchPos.stopAnimation();
+    if (prev === next) {
+      notchPos.setValue(next * itemSize + itemSize / 2);
+    } else {
+      Animated.spring(notchPos, {
+        toValue: next * itemSize + itemSize / 2,
+        damping: 20, stiffness: 130, mass: 0.9, useNativeDriver: false,
+      }).start();
+      Animated.spring(floatAnims[prev], { toValue: 0, damping: 14, stiffness: 110, useNativeDriver: true }).start();
+      Animated.spring(floatAnims[next], { toValue: FLOAT_DIST, damping: 14, stiffness: 110, useNativeDriver: true }).start();
+      Animated.sequence([
+        Animated.timing(labelScale[next], { toValue: 0.88, duration: 80, useNativeDriver: true }),
+        Animated.spring(labelScale[next], { toValue: 1, damping: 10, stiffness: 180, useNativeDriver: true }),
+      ]).start();
+    }
     prevIndex.current = next;
-
-    // Slide notch along bar top edge
-    Animated.spring(notchX, {
-      toValue: next * TAB_W + TAB_W / 2,
-      damping: 20,
-      stiffness: 130,
-      mass: 0.9,
-      useNativeDriver: false,
-    }).start();
-
-    // Previous icon: drop back down
-    Animated.spring(floatY[prev], {
-      toValue: 0,
-      damping: 14,
-      stiffness: 110,
-      useNativeDriver: true,
-    }).start();
-
-    // New active icon: float up to safe height
-    Animated.spring(floatY[next], {
-      toValue: FLOAT_Y,
-      damping: 14,
-      stiffness: 110,
-      useNativeDriver: true,
-    }).start();
-
-    // Tactile scale spring on NEW tab label
-    Animated.sequence([
-      Animated.timing(labelScale[next], {
-        toValue: 0.88,
-        duration: 80,
-        useNativeDriver: true,
-      }),
-      Animated.spring(labelScale[next], {
-        toValue: 1,
-        damping: 10,
-        stiffness: 180,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [state.index]);
+  }, [state.index, itemSize, isLandscape]);
 
   return (
     <View
       style={[
         styles.wrapper,
-        { height: TOTAL_SVG_H + insets.bottom, bottom: 0 },
+        isLandscape 
+          ? { top: 0, bottom: 0, left: 0, width: TOTAL_SIZE + insets.left }
+          : { bottom: 0, left: 0, right: 0, height: TOTAL_SIZE + insets.bottom }
       ]}
     >
-      {/* ── SVG bar shape ── */}
       <Svg
-        width={SCREEN_WIDTH}
-        height={TOTAL_SVG_H + insets.bottom}
+        width={isLandscape ? TOTAL_SIZE + insets.left : screenW}
+        height={isLandscape ? screenH : TOTAL_SIZE + insets.bottom}
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       >
-        {/* depth shadow */}
-        <Path d={svgPath} fill="rgba(0,0,0,0.3)" translateY={3} />
-        {/* main fill */}
-        <Path d={svgPath} fill={BAR_COLOR} />
+        <G transform={isLandscape ? `translate(${insets.left}, 0) scale(-1, 1) translate(-${TOTAL_SIZE}, 0)` : ''}>
+           <Path d={svgPath} fill="rgba(0,0,0,0.3)" transform={isLandscape ? 'translate(-3, 0)' : 'translate(0, 3)'} />
+           <Path d={svgPath} fill={BAR_COLOR} />
+        </G>
       </Svg>
 
-      {/* ── Tab buttons ── */}
       <View
         style={[
-          styles.rowContainer,
-          // At least 14px bottom padding even on devices with no home bar
-          { paddingBottom: Math.max(insets.bottom, 14) },
+          isLandscape ? styles.colContainer : styles.rowContainer,
+          isLandscape 
+            ? { paddingLeft: insets.left, width: BAR_SIZE + insets.left }
+            : { paddingBottom: insets.bottom, height: BAR_SIZE + insets.bottom }
         ]}
       >
         {state.routes.map((route: any, index: number) => {
           const isFocused = state.index === index;
-          const label     = TABS[route.name]?.label ?? route.name;
-          const iconColor = isFocused ? NEON : INACTIVE;
-          const textColor = isFocused ? NEON : INACTIVE;
-
-          const onPress = () => {
-            const event = navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            });
-            if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name);
-            }
-          };
+          const label = TABS[route.name]?.label ?? route.name;
+          const activeColor = isFocused ? NEON : INACTIVE;
 
           return (
-            <Pressable
-              key={route.key}
-              onPress={onPress}
+            <Pressable 
+              key={route.key} 
+              onPress={() => {
+                const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+                if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name);
+              }} 
               style={styles.tabItem}
-              hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
             >
-              {/* Icon — translateY moves it up into crater; stays on dark bg */}
               <Animated.View
                 style={[
                   styles.iconSlot,
-                  { transform: [{ translateY: floatY[index] }] },
+                  { 
+                    transform: [
+                      isLandscape ? { translateX: floatAnims[index] } : { translateY: Animated.multiply(floatAnims[index], -1) }
+                    ] 
+                  },
                 ]}
               >
-                <TabIcon
-                  name={route.name}
-                  color={iconColor}
-                  size={isFocused ? 26 : 22}
-                />
+                <TabIcon name={route.name} color={activeColor} size={isFocused ? 26 : 22} />
               </Animated.View>
-
-              {/* Label — always visible, color reflects focus state */}
               <Animated.Text
                 style={[
                   styles.label,
-                  {
-                    color: textColor,
-                    transform: [{ scale: labelScale[index] }],
-                    fontWeight: isFocused ? '700' : '400',
-                  },
+                  { color: activeColor, transform: [{ scale: labelScale[index] }], fontWeight: isFocused ? '700' : '400' },
                 ]}
-                numberOfLines={1}
               >
                 {label}
               </Animated.Text>
@@ -270,45 +235,11 @@ export const CustomTabBar = ({ state, descriptors, navigation }: Props) => {
   );
 };
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  wrapper: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    zIndex: 9999,        // always on top
-    elevation: 24,       // Android — above all app content
-    backgroundColor: 'transparent',
-    overflow: 'visible', // allow icon to float above container bounds
-  },
-  rowContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: TOTAL_SVG_H,
-    flexDirection: 'row',
-    alignItems: 'center',
-    overflow: 'visible',
-  },
-  tabItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-    overflow: 'visible',
-  },
-  iconSlot: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 44,
-    height: 44,
-    // Completely bare — no background, no border, no shadow container
-  },
-  label: {
-    fontSize: 10,
-    letterSpacing: 0.4,
-    textTransform: 'capitalize',
-    marginTop: 3,
-  },
+  wrapper: { position: 'absolute', zIndex: 9999, elevation: 24, backgroundColor: 'transparent', overflow: 'visible' },
+  rowContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', overflow: 'visible' },
+  colContainer: { position: 'absolute', left: 0, top: 0, bottom: 0, flexDirection: 'column', justifyContent: 'center', alignItems: 'center', overflow: 'visible' },
+  tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center', width: '100%', padding: 10, overflow: 'visible' },
+  iconSlot: { alignItems: 'center', justifyContent: 'center', width: 44, height: 44 },
+  label: { fontSize: 10, letterSpacing: 0.4, textTransform: 'capitalize', marginTop: 3 },
 });
