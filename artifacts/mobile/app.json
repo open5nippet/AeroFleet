@@ -30,8 +30,11 @@
         "ACCESS_COARSE_LOCATION",
         "INTERNET",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
-      ]
+        "WRITE_EXTERNAL_STORAGE",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.coderunner63.aerofleet"
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -47,6 +50,11 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "dd1dae99-c99e-42a2-b6ee-b1da00bc1bd3"
+      }
     }
   }
 }

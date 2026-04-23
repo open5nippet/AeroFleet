@@ -59,6 +59,7 @@
   "dependencies": {
     "@rnmapbox/maps": "^10.3.0",
     "expo-camera": "~17.0.10",
+    "expo-dev-client": "~6.0.20",
     "expo-video": "~2.0.6",
     "lightningcss": "^1.32.0"
   }
