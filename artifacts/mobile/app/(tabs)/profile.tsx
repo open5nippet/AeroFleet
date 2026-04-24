@@ -53,7 +53,7 @@ const AchievementBadge = memo(function AchievementBadge({
       <Text style={[achieveStyles.desc, { color: C.textMuted, fontFamily: "Inter_400Regular" }]}>{desc}</Text>
     </View>
   );
-}
+});
 
 const achieveStyles = StyleSheet.create({
   badge: {
@@ -94,7 +94,7 @@ const MenuItem = memo(function MenuItem({
       {!danger && <Ionicons name="chevron-forward" size={16} color={textMuted} />}
     </Pressable>
   );
-}
+});
 
 const THEME_OPTIONS: { key: ThemePreference; label: string; icon: string }[] = [
   { key: "light", label: "Light", icon: "sunny-outline" },

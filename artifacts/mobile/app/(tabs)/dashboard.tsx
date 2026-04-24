@@ -200,14 +200,16 @@ export default function DashboardScreen() {
     Animated.timing(headerAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
   }, []);
 
-  // Track max speed during session
+  // Track max speed during session — include maxSpeed in deps to avoid stale closure
   useEffect(() => {
     if (isRecording && speed > maxSpeed) setMaxSpeed(speed);
-  }, [speed, isRecording]);
+  }, [speed, isRecording, maxSpeed]);
 
-  // Reset max speed when session starts
+  // Reset max speed only when a new session starts (isRecording flips true)
+  const prevIsRecording = useRef(false);
   useEffect(() => {
-    if (isRecording) setMaxSpeed(0);
+    if (isRecording && !prevIsRecording.current) setMaxSpeed(0);
+    prevIsRecording.current = isRecording;
   }, [isRecording]);
 
   // Alert banner when new safety event detected

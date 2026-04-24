@@ -99,30 +99,33 @@ router.post("/route", async (req: Request, res: Response): Promise<void> => {
 
   const { originLat, originLng, destLat, destLng } = req.body;
 
-  if (
-    typeof originLat !== "number" ||
-    typeof originLng !== "number" ||
-    typeof destLat !== "number" ||
-    typeof destLng !== "number"
-  ) {
+  const lat1 = Number(originLat);
+  const lng1 = Number(originLng);
+  const lat2 = Number(destLat);
+  const lng2 = Number(destLng);
+
+  if (isNaN(lat1) || isNaN(lng1) || isNaN(lat2) || isNaN(lng2)) {
     res.status(400).json({ error: "Invalid coordinates" });
     return;
   }
 
   try {
     const url = new URL(
-      `/directions/v5/mapbox/driving-traffic/${originLng},${originLat};${destLng},${destLat}`,
+      `/directions/v5/mapbox/driving/${lng1},${lat1};${lng2},${lat2}`,
       MAPBOX_BASE
     );
     url.searchParams.set("access_token", MAPBOX_KEY);
     url.searchParams.set("geometries", "geojson");
     url.searchParams.set("overview", "full");
     url.searchParams.set("steps", "false");
-    url.searchParams.set("bannerInstructions", "false");
-    url.searchParams.set("voiceInstructions", "false");
+
+    console.log(`[Mapbox Route] Received coords: origin(${lat1},${lng1}) dest(${lat2},${lng2})`);
+    console.log(`[Mapbox Route] Calling: ${url.toString().replace(MAPBOX_KEY, "***")}`);
 
     const response = await fetch(url.toString());
     if (!response.ok) {
+      const text = await response.text();
+      console.error(`[Mapbox Route] Mapbox API ${response.status}: ${text}`);
       throw new Error(`Mapbox API error: ${response.statusText}`);
     }
 

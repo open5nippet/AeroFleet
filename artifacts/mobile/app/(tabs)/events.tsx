@@ -236,7 +236,7 @@ export default function EventsScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterRow}>
               {FILTER_OPTIONS.map((opt) => {
                 const active = filter === opt.key;
-                const count = opt.key === "all" ? events.length : events.filter((e) => e.type === opt.key).length;
+                const count = eventCounts[opt.key] ?? 0;
                 return (
                   <Pressable
                     key={opt.key}

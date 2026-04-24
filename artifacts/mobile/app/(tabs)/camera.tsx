@@ -72,12 +72,14 @@ export default function CameraScreen() {
 
   useEffect(() => {
     if (isRecording) {
-      Animated.loop(
+      const loop = Animated.loop(
         Animated.sequence([
           Animated.timing(recPulse, { toValue: 1.15, duration: 700, useNativeDriver: Platform.OS !== "web" }),
           Animated.timing(recPulse, { toValue: 1, duration: 700, useNativeDriver: Platform.OS !== "web" }),
         ])
-      ).start();
+      );
+      loop.start();
+      return () => loop.stop();
     } else {
       recPulse.setValue(1);
     }

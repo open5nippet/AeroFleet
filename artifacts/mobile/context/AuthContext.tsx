@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await AsyncStorage.removeItem(STORAGE_KEY);
+      await AsyncStorage.multiRemove([STORAGE_KEY, "auth_token"]);
       setDriver(null);
     } catch (error) {
       console.error('[AuthContext] Logout error:', error);

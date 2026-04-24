@@ -18,7 +18,6 @@ import {
   Text,
   TextInput,
   useWindowDimensions,
-  useColorScheme,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -64,7 +63,7 @@ const SuggestionItem = memo(function SuggestionItem({ item, onPress, C }: { item
       </View>
     </Pressable>
   );
-}
+});
 
 export default function MapScreen() {
   const { colors: C } = useTheme();
@@ -72,8 +71,6 @@ export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
-  const colorScheme = useColorScheme();
-  const isDarkMode = colorScheme === "dark";
   const topPad = IS_WEB ? 67 : insets.top;
   const bottomPad = IS_WEB ? 34 : insets.bottom;
   const isSmall = width < 380;
@@ -465,11 +462,11 @@ export default function MapScreen() {
         pointerEvents={isRecording ? "none" : "box-none"}
       >
         <LinearGradient
-          colors={isDarkMode
-            ? ["transparent", "transparent"]
-            : C.isDark
+          colors={
+            C.isDark
               ? ["rgba(6,8,16,0.95)", "rgba(6,8,16,0.85)", "rgba(6,8,16,0.2)", "transparent"]
-              : ["rgba(240,244,251,0.95)", "rgba(240,244,251,0.85)", "rgba(240,244,251,0.2)", "transparent"]}
+              : ["rgba(240,244,251,0.95)", "rgba(240,244,251,0.85)", "rgba(240,244,251,0.2)", "transparent"]
+          }
           style={[
             styles.topGradient, 
             { 
