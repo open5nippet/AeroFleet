@@ -229,14 +229,46 @@ export default function MapScreen() {
   }, [locPermission, requestLocPermission]);
 
   const handleGetRoute = useCallback(async () => {
-    if (!originCoords || !destCoords) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    let finalOrigin = originCoords;
+    let finalDest = destCoords;
+
     setLoadingRoute(true);
     setRouteError("");
+
+    // Auto-geocode if text is entered but suggestion wasn't tapped
+    if (!finalOrigin && originText.trim().length >= 2) {
+      const res = await geocodePlace(originText);
+      if (res.length > 0) {
+        finalOrigin = { latitude: res[0].center[1], longitude: res[0].center[0] };
+        setOriginCoords(finalOrigin);
+        setOriginText(res[0].place_name.split(",")[0]);
+      }
+    }
+
+    if (!finalDest && destText.trim().length >= 2) {
+      const res = await geocodePlace(destText);
+      if (res.length > 0) {
+        finalDest = { latitude: res[0].center[1], longitude: res[0].center[0] };
+        setDestCoords(finalDest);
+        setDestText(res[0].place_name.split(",")[0]);
+      }
+    }
+
+    if (!finalOrigin || !finalDest) {
+      setRouteError("Please select both origin and destination.");
+      setLoadingRoute(false);
+      return;
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setRoute(null);
     cardAnim.setValue(0);
+    setSuggestions([]);
+    setActiveField(null);
+    Keyboard.dismiss();
+
     try {
-      const result = await getRoute(originCoords, destCoords);
+      const result = await getRoute(finalOrigin, finalDest);
       if (!result) {
         setRouteError("Could not find a route. Try different locations.");
       } else {
@@ -248,7 +280,7 @@ export default function MapScreen() {
     } finally {
       setLoadingRoute(false);
     }
-  }, [originCoords, destCoords, isSmall, cardAnim]);
+  }, [originCoords, destCoords, originText, destText, cardAnim]);
 
   const clearAll = useCallback(() => {
     setRoute(null); setOriginCoords(null); setDestCoords(null);
@@ -256,7 +288,7 @@ export default function MapScreen() {
     cardAnim.setValue(0);
   }, [cardAnim]);
 
-  const canRoute = !!originCoords && !!destCoords && !loadingRoute;
+  const canRoute = ((!!originCoords || originText.trim().length >= 2) && (!!destCoords || destText.trim().length >= 2)) && !loadingRoute;
 
   const SearchPanel = (
     <View style={{ gap: 12 }}>

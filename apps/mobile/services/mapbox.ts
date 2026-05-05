@@ -1,9 +1,11 @@
+import Constants from "expo-constants";
+
 export type Coordinates = { latitude: number; longitude: number };
 
 export type GeocodeResult = {
   id: string;
   place_name: string;
-  center: [number, number];
+  center: [number, number]; // [lng, lat]
 };
 
 export type RouteResult = {
@@ -12,39 +14,63 @@ export type RouteResult = {
   coordinates: Coordinates[];
 };
 
-// Backend API endpoint for secure Mapbox proxying
-const API_BASE = process.env.EXPO_PUBLIC_API_URL;
+// ─── Backend URL resolution ───────────────────────────────────────────────────
+// Strategy:
+//   1. Use EXPO_PUBLIC_API_URL if explicitly set and looks like a real address
+//   2. Auto-derive from Expo dev server host (so physical devices always connect)
+//   3. Fall back to localhost (for simulators / web)
 
-// Configurable location defaults (can be overridden via environment or config)
-const DEFAULT_COUNTRY = process.env.EXPO_PUBLIC_LOCATION_COUNTRY ?? "in";
-const DEFAULT_BBOX = process.env.EXPO_PUBLIC_LOCATION_BBOX ?? "76.8381,28.4042,77.3485,28.8835";
-const DEFAULT_CENTER = process.env.EXPO_PUBLIC_LOCATION_CENTER ?? "77.2090,28.6139";
+function getApiBase(): string {
+  const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
 
-function normalizeBaseUrl(base: string): string {
-  return base.trim().replace(/\/+$/, "");
-}
-
-function requireApiBase(): string {
-  if (!API_BASE?.trim()) {
-    throw new Error("EXPO_PUBLIC_API_URL is missing. Set it to your API server origin (e.g. http://192.168.1.10:3000).");
+  // Use the env var only if it looks like a real IP/hostname (not a placeholder)
+  if (envUrl && !envUrl.includes("192.168.1.10")) {
+    return envUrl.replace(/\/+$/, "");
   }
-  return normalizeBaseUrl(API_BASE);
+
+  // Expo injects the dev-server host (e.g. "10.18.24.92:8081") into all clients.
+  // Extracting just the IP and appending port 3000 gives us the backend.
+  const hostUri =
+    Constants.expoConfig?.hostUri ??
+    (Constants as any).manifest?.debuggerHost ??
+    (Constants as any).manifest2?.extra?.expoClient?.hostUri;
+
+  if (hostUri) {
+    const ip = hostUri.split(":")[0];
+    console.log(`[API] Derived backend IP from Expo hostUri: ${ip}`);
+    return `http://${ip}:3000/api`;
+  }
+
+  // Web browser fallback
+  if (typeof window !== "undefined" && window.location) {
+    return `http://${window.location.hostname}:3000/api`;
+  }
+
+  return "http://localhost:3000/api";
 }
 
 function apiUrl(pathname: string): string {
-  const base = requireApiBase();
+  const base = getApiBase();
   const path = pathname.startsWith("/") ? pathname : `/${pathname}`;
   return `${base}${path}`;
 }
 
+// ─── Geocoding — via backend (Google Places API key is server-side) ───────────
+const DEFAULT_COUNTRY = process.env.EXPO_PUBLIC_LOCATION_COUNTRY ?? "in";
+const DEFAULT_BBOX =
+  process.env.EXPO_PUBLIC_LOCATION_BBOX ?? "76.8381,28.4042,77.3485,28.8835";
+
 /**
- * Geocode a place by calling the backend proxy endpoint (Mapbox key is never exposed to client)
+ * Geocode a place name via the backend proxy (which calls Google Places API).
+ * The API key never leaves the server.
  */
 export async function geocodePlace(query: string): Promise<GeocodeResult[]> {
-  if (!query.trim()) return [];
+  if (!query.trim() || query.trim().length < 2) return [];
+
+  const url = apiUrl("/mapbox/geocode");
 
   try {
-    const url = apiUrl("/mapbox/geocode");
+    console.log(`[Geocode] Calling: ${url}  query="${query}"`);
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -54,29 +80,34 @@ export async function geocodePlace(query: string): Promise<GeocodeResult[]> {
         bbox: DEFAULT_BBOX,
       }),
     });
-    
+
     if (!res.ok) {
-      console.error(`[Geocode] Backend error (${res.status}) at: ${url}`);
+      const body = await res.text();
+      console.error(`[Geocode] Backend error ${res.status}: ${body}`);
       return [];
     }
-    
+
     const data = await res.json();
     return data.results ?? [];
   } catch (error) {
-    console.error(`[Geocode] Request failed:`, error);
+    console.error(`[Geocode] Request failed (url=${url}):`, error);
     return [];
   }
 }
 
+// ─── Routing — via backend (Mapbox secret key is server-side) ─────────────────
+
 /**
- * Get route between two coordinates by calling the backend proxy endpoint
+ * Get a driving route between two coordinates via the backend Mapbox proxy.
  */
 export async function getRoute(
   origin: Coordinates,
   destination: Coordinates
 ): Promise<RouteResult | null> {
+  const url = apiUrl("/mapbox/route");
+
   try {
-    const url = apiUrl("/mapbox/route");
+    console.log(`[Route] Calling: ${url}`);
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -87,18 +118,21 @@ export async function getRoute(
         destLng: destination.longitude,
       }),
     });
-    
+
     if (!res.ok) {
-      console.error(`[Route] Backend error (${res.status}) at: ${url}`);
+      const body = await res.text();
+      console.error(`[Route] Backend error ${res.status}: ${body}`);
       return null;
     }
-    
+
     return await res.json();
   } catch (error) {
-    console.error(`[Route] Request failed:`, error);
+    console.error(`[Route] Request failed (url=${url}):`, error);
     return null;
   }
 }
+
+// ─── Formatting helpers ───────────────────────────────────────────────────────
 
 export function formatDistance(meters: number): string {
   if (meters >= 1000) return `${(meters / 1000).toFixed(1)} km`;
